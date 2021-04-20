@@ -6,9 +6,10 @@
 #include "vector"
 #include "algorithm"
 #include "random"
+#include "hash_table.h"
 #include "linearprobing.h"
 //using namespace LinearProbing;
-void test_correctness(std::vector<LinearProbing::KeyValue> insert_kvs, std::vector<LinearProbing::KeyValue> delete_kvs, std::vector<LinearProbing::KeyValue> kvs)
+void test_correctness(std::vector<KeyValue> insert_kvs, std::vector<KeyValue> delete_kvs, std::vector<KeyValue> kvs)
 {
     printf("Testing that there are no duplicate keys...\n");
     std::unordered_set<uint32_t> unique_keys;
@@ -17,7 +18,7 @@ void test_correctness(std::vector<LinearProbing::KeyValue> insert_kvs, std::vect
         if (i % 10000000 == 0)
             printf("    Verifying %d/%d\n", i, (uint32_t)kvs.size());
 
-        LinearProbing::KeyValue* node = &kvs[i];
+        KeyValue* node = &kvs[i];
         if (unique_keys.find(node->key) != unique_keys.end())
         {
             printf("Duplicate key found in GPU hash table at slot %d\n", i);

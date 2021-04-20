@@ -4,7 +4,7 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     set(CMAKE_CUDA_ARCHITECTURES 75)
 endif()
 
-project(SimpleConcurrentGPUHashTable LANGUAGES CXX CUDA)
+project(GPUHashTables LANGUAGES CXX CUDA)
 
 # put predefined cmake projects in their own solution folder
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -12,8 +12,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_35,code=sm_35")
 
 set(SOURCE_FILES src/main.cpp src/test.cpp src/linearprobing.h src/linearprobing.cu
-        #src/definitions.h src/hash_functions.cu src/hash_functions.h src/hash_table.cuh)
-        src/cuckoo.cu src/cuckoo.h)
+        #src/definitions.h src/hash_functions.cu src/hash_functions.h src/hash_table.cuh
+        src/cuckoo.cu src/cuckoo.h src/hash_table.h)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 

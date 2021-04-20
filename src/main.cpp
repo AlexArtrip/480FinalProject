@@ -6,33 +6,34 @@
 #include "unordered_set"
 #include "vector"
 #include "chrono"
+#include "hash_table.h"
 #include "linearprobing.h"
 //using namespace LinearProbing;
 // Create random keys/values in the range [0, kEmpty)
 // kEmpty is used to indicate an empty slot
-std::vector<LinearProbing::KeyValue> generate_random_keyvalues(std::mt19937& rnd, uint32_t numkvs)
+std::vector<KeyValue> generate_random_keyvalues(std::mt19937& rnd, uint32_t numkvs)
 {
-    std::uniform_int_distribution<uint32_t> dis(0, LinearProbing::kEmpty - 1);
+    std::uniform_int_distribution<uint32_t> dis(0, kEmpty - 1);
 
-    std::vector<LinearProbing::KeyValue> kvs;
+    std::vector<KeyValue> kvs;
     kvs.reserve(numkvs);
 
     for (uint32_t i = 0; i < numkvs; i++)
     {
         uint32_t rand0 = dis(rnd);
         uint32_t rand1 = dis(rnd);
-        kvs.push_back(LinearProbing::KeyValue{rand0, rand1});
+        kvs.push_back(KeyValue{rand0, rand1});
     }
 
     return kvs;
 }
 
 // return numshuffledkvs random items from kvs
-std::vector<LinearProbing::KeyValue> shuffle_keyvalues(std::mt19937& rnd, std::vector<LinearProbing::KeyValue> kvs, uint32_t numshuffledkvs)
+std::vector<KeyValue> shuffle_keyvalues(std::mt19937& rnd, std::vector<KeyValue> kvs, uint32_t numshuffledkvs)
 {
     std::shuffle(kvs.begin(), kvs.end(), rnd);
 
-    std::vector<LinearProbing::KeyValue> shuffled_kvs;
+    std::vector<KeyValue> shuffled_kvs;
     shuffled_kvs.resize(numshuffledkvs);
 
     std::copy(kvs.begin(), kvs.begin() + numshuffledkvs, shuffled_kvs.begin());
@@ -56,7 +57,7 @@ double get_elapsed_time(Time start)
     return us.count() / 1000.0f;
 }
 
-void test_unordered_map(std::vector<LinearProbing::KeyValue> insert_kvs, std::vector<LinearProbing::KeyValue> delete_kvs)
+void test_unordered_map(std::vector<KeyValue> insert_kvs, std::vector<KeyValue> delete_kvs)
 {
     Time timer = start_timer();
 
@@ -79,10 +80,10 @@ void test_unordered_map(std::vector<LinearProbing::KeyValue> insert_kvs, std::ve
     double milliseconds = get_elapsed_time(timer);
     double seconds = milliseconds / 1000.0f;
     printf("Total time for std::unordered_map: %f ms (%f million keys/second)\n", 
-        milliseconds, LinearProbing::kNumKeyValues / seconds / 1000000.0f);
+        milliseconds, kNumKeyValues / seconds / 1000000.0f);
 }
 
-void test_correctness(std::vector<LinearProbing::KeyValue>, std::vector<LinearProbing::KeyValue>, std::vector<LinearProbing::KeyValue>);
+void test_correctness(std::vector<KeyValue>, std::vector<KeyValue>, std::vector<KeyValue>);
 
 int main() 
 {
@@ -98,8 +99,8 @@ int main()
     {
         printf("Initializing keyvalue pairs with random numbers...\n");
 
-        std::vector<LinearProbing::KeyValue> insert_kvs = generate_random_keyvalues(rnd, LinearProbing::kNumKeyValues);
-        std::vector<LinearProbing::KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, LinearProbing::kNumKeyValues / 2);
+        std::vector<KeyValue> insert_kvs = generate_random_keyvalues(rnd, kNumKeyValues);
+        std::vector<KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
 
         // Begin test
         printf("Testing insertion/deletion of %d/%d elements into GPU hash table...\n",
@@ -107,14 +108,14 @@ int main()
 
         Time timer = start_timer();
 
-        LinearProbing::KeyValue* pHashTable = LinearProbing::create_hashtable();
+        KeyValue* pHashTable = LinearProbing::create_hashtable();
 
         // Insert items into the hash table
         const uint32_t num_insert_batches = 16;
         uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
         for (uint32_t i = 0; i < num_insert_batches; i++)
         {
-            insert_hashtable(pHashTable, insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
+            LinearProbing::insert_hashtable(pHashTable, insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
         }
 
         // Delete items from the hash table
@@ -122,19 +123,19 @@ int main()
         uint32_t num_deletes_per_batch = (uint32_t)delete_kvs.size() / num_delete_batches;
         for (uint32_t i = 0; i < num_delete_batches; i++)
         {
-            delete_hashtable(pHashTable, delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
+            LinearProbing::delete_hashtable(pHashTable, delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
         }
 
         // Get all the key-values from the hash table
-        std::vector<LinearProbing::KeyValue> kvs = iterate_hashtable(pHashTable);
+        std::vector<KeyValue> kvs = LinearProbing::iterate_hashtable(pHashTable);
 
-        destroy_hashtable(pHashTable);
+        LinearProbing::destroy_hashtable(pHashTable);
 
         // Summarize results
         double milliseconds = get_elapsed_time(timer);
         double seconds = milliseconds / 1000.0f;
         printf("Total time (including memory copies, readback, etc): %f ms (%f million keys/second)\n", milliseconds,
-            LinearProbing::kNumKeyValues / seconds / 1000000.0f);
+            kNumKeyValues / seconds / 1000000.0f);
 
         test_unordered_map(insert_kvs, delete_kvs);
 
