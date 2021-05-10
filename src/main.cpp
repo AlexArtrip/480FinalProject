@@ -108,14 +108,14 @@ int main()
 
         Time timer = start_timer();
 
-        KeyValue* pHashTable = LinearProbing::create_hashtable();
+        LinearProbing::HashTableLP hashTable = LinearProbing::HashTableLP();
 
         // Insert items into the hash table
         const uint32_t num_insert_batches = 16;
         uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
         for (uint32_t i = 0; i < num_insert_batches; i++)
         {
-            LinearProbing::insert_hashtable(pHashTable, insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
+            hashTable.insert_hashtable(insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
         }
 
         // Delete items from the hash table
@@ -123,13 +123,11 @@ int main()
         uint32_t num_deletes_per_batch = (uint32_t)delete_kvs.size() / num_delete_batches;
         for (uint32_t i = 0; i < num_delete_batches; i++)
         {
-            LinearProbing::delete_hashtable(pHashTable, delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
+            hashTable.delete_hashtable(delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
         }
 
         // Get all the key-values from the hash table
-        std::vector<KeyValue> kvs = LinearProbing::iterate_hashtable(pHashTable);
-
-        LinearProbing::destroy_hashtable(pHashTable);
+        std::vector<KeyValue> kvs = hashTable.iterate_hashtable();
 
         // Summarize results
         double milliseconds = get_elapsed_time(timer);

@@ -14,6 +14,7 @@
  * @brief Stores configuration flags and definitions for hard-coded values in hash table implementations.
  */
 
+
 #ifndef CUDAHT__CUCKOO__SRC__LIBRARY__DEFINITIONS__H
 #define CUDAHT__CUCKOO__SRC__LIBRARY__DEFINITIONS__H
 
@@ -96,8 +97,8 @@ const unsigned kBlockSize = 64;
 const unsigned kGridSize  = 16384;
 
 //! Minimum table sizes for 2 through 5 functions.
-const float kMinimumSpaceUsages[] = {std::numeric_limits<float>::max(),
-                                     std::numeric_limits<float>::max(),
+const float kMinimumSpaceUsages[6] = { (std::numeric_limits<float>::max)(),
+                                     (std::numeric_limits<float>::max)(),
                                      2.01f,
                                      1.1f,
                                      1.03f,

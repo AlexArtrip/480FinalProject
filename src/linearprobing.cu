@@ -4,39 +4,39 @@
 #include "linearprobing.h"
 namespace LinearProbing {
     // 32 bit Murmur3 hash
-    __device__ uint32_t hash(uint32_t k)
+    __device__ uint32_t hash(uint32_t k, uint32_t capacity)
     {
         k ^= k >> 16;
         k *= 0x85ebca6b;
         k ^= k >> 13;
         k *= 0xc2b2ae35;
         k ^= k >> 16;
-        return k & (kHashTableCapacity - 1);
+        return k & (capacity - 1);
     }
 
     // Create a hash table. For linear probing, this is just an array of KeyValues
-    KeyValue* create_hashtable()
+    KeyValue* create_hashtable(uint32_t capacity)
     {
         // Allocate memory
         KeyValue* hashtable;
-        cudaMalloc(&hashtable, sizeof(KeyValue) * kHashTableCapacity);
+        cudaMalloc(&hashtable, sizeof(KeyValue) * capacity);
 
         // Initialize hash table to empty
         static_assert(kEmpty == 0xffffffff, "memset expected kEmpty=0xffffffff");
-        cudaMemset(hashtable, 0xff, sizeof(KeyValue) * kHashTableCapacity);
+        cudaMemset(hashtable, 0xff, sizeof(KeyValue) * capacity);
 
         return hashtable;
     }
 
     // Insert the key/values in kvs into the hashtable
-    __global__ void gpu_hashtable_insert(KeyValue* hashtable, const KeyValue* kvs, unsigned int numkvs)
+    __global__ void gpu_hashtable_insert(KeyValue* hashtable, uint32_t capacity, const KeyValue* kvs, unsigned int numkvs)
     {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs)
         {
             uint32_t key = kvs[threadid].key;
             uint32_t value = kvs[threadid].value;
-            uint32_t slot = hash(key);
+            uint32_t slot = hash(key, capacity);
 
             while (true)
             {
@@ -47,12 +47,12 @@ namespace LinearProbing {
                     return;
                 }
 
-                slot = (slot + 1) & (kHashTableCapacity - 1);
+                slot = (slot + 1) & (capacity - 1);
             }
         }
     }
 
-    void insert_hashtable(KeyValue* pHashTable, const KeyValue* kvs, uint32_t num_kvs)
+    void insert_hashtable(KeyValue* pHashTable, uint32_t capacity, const KeyValue* kvs, uint32_t num_kvs)
     {
         // Copy the keyvalues to the GPU
         KeyValue* device_kvs;
@@ -73,7 +73,7 @@ namespace LinearProbing {
 
         // Insert all the keys into the hash table
         int gridsize = ((uint32_t)num_kvs + threadblocksize - 1) / threadblocksize;
-        gpu_hashtable_insert << <gridsize, threadblocksize >> > (pHashTable, device_kvs, (uint32_t)num_kvs);
+        gpu_hashtable_insert << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, (uint32_t)num_kvs);
 
         cudaEventRecord(stop);
 
@@ -89,13 +89,13 @@ namespace LinearProbing {
     }
 
     // Lookup keys in the hashtable, and return the values
-    __global__ void gpu_hashtable_lookup(KeyValue* hashtable, KeyValue* kvs, unsigned int numkvs)
+    __global__ void gpu_hashtable_lookup(KeyValue* hashtable, uint32_t capacity, KeyValue* kvs, unsigned int numkvs)
     {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (threadid < kHashTableCapacity)
+        if (threadid < numkvs)
         {
             uint32_t key = kvs[threadid].key;
-            uint32_t slot = hash(key);
+            uint32_t slot = hash(key, capacity);
 
             while (true)
             {
@@ -109,12 +109,12 @@ namespace LinearProbing {
                     kvs[threadid].value = kEmpty;
                     return;
                 }
-                slot = (slot + 1) & (kHashTableCapacity - 1);
+                slot = (slot + 1) & (capacity - 1);
             }
         }
     }
 
-    void lookup_hashtable(KeyValue* pHashTable, KeyValue* kvs, uint32_t num_kvs)
+    void lookup_hashtable(KeyValue* pHashTable, uint32_t capacity, KeyValue* kvs, uint32_t num_kvs)
     {
         // Copy the keyvalues to the GPU
         KeyValue* device_kvs;
@@ -135,7 +135,7 @@ namespace LinearProbing {
 
         // Insert all the keys into the hash table
         int gridsize = ((uint32_t)num_kvs + threadblocksize - 1) / threadblocksize;
-        gpu_hashtable_lookup << <gridsize, threadblocksize >> > (pHashTable, device_kvs, (uint32_t)num_kvs);
+        gpu_hashtable_lookup << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, (uint32_t)num_kvs);
 
         cudaEventRecord(stop);
 
@@ -153,13 +153,13 @@ namespace LinearProbing {
     // Delete each key in kvs from the hash table, if the key exists
     // A deleted key is left in the hash table, but its value is set to kEmpty
     // Deleted keys are not reused; once a key is assigned a slot, it never moves
-    __global__ void gpu_hashtable_delete(KeyValue* hashtable, const KeyValue* kvs, unsigned int numkvs)
+    __global__ void gpu_hashtable_delete(KeyValue* hashtable, uint32_t capacity, const KeyValue* kvs, unsigned int numkvs)
     {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (threadid < kHashTableCapacity)
+        if (threadid < numkvs)
         {
             uint32_t key = kvs[threadid].key;
-            uint32_t slot = hash(key);
+            uint32_t slot = hash(key, capacity);
 
             while (true)
             {
@@ -172,12 +172,12 @@ namespace LinearProbing {
                 {
                     return;
                 }
-                slot = (slot + 1) & (kHashTableCapacity - 1);
+                slot = (slot + 1) & (capacity - 1);
             }
         }
     }
 
-    void delete_hashtable(KeyValue* pHashTable, const KeyValue* kvs, uint32_t num_kvs)
+    void delete_hashtable(KeyValue* pHashTable, uint32_t capacity, const KeyValue* kvs, uint32_t num_kvs)
     {
         // Copy the keyvalues to the GPU
         KeyValue* device_kvs;
@@ -198,7 +198,7 @@ namespace LinearProbing {
 
         // Insert all the keys into the hash table
         int gridsize = ((uint32_t)num_kvs + threadblocksize - 1) / threadblocksize;
-        gpu_hashtable_delete << <gridsize, threadblocksize >> > (pHashTable, device_kvs, (uint32_t)num_kvs);
+        gpu_hashtable_delete << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, (uint32_t)num_kvs);
 
         cudaEventRecord(stop);
 
@@ -214,10 +214,10 @@ namespace LinearProbing {
     }
 
     // Iterate over every item in the hashtable; return non-empty key/values
-    __global__ void gpu_iterate_hashtable(KeyValue* pHashTable, KeyValue* kvs, uint32_t* kvs_size)
+    __global__ void gpu_iterate_hashtable(KeyValue* pHashTable, uint32_t capacity, KeyValue* kvs, uint32_t* kvs_size)
     {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (threadid < kHashTableCapacity)
+        if (threadid < capacity)
         {
             if (pHashTable[threadid].key != kEmpty)
             {
@@ -231,7 +231,7 @@ namespace LinearProbing {
         }
     }
 
-    std::vector<KeyValue> iterate_hashtable(KeyValue* pHashTable)
+    std::vector<KeyValue> iterate_hashtable(KeyValue* pHashTable, uint32_t capacity)
     {
         uint32_t* device_num_kvs;
         cudaMalloc(&device_num_kvs, sizeof(uint32_t));
@@ -245,7 +245,7 @@ namespace LinearProbing {
         cudaOccupancyMaxPotentialBlockSize(&mingridsize, &threadblocksize, gpu_iterate_hashtable, 0, 0);
 
         int gridsize = (kHashTableCapacity + threadblocksize - 1) / threadblocksize;
-        gpu_iterate_hashtable << <gridsize, threadblocksize >> > (pHashTable, device_kvs, device_num_kvs);
+        gpu_iterate_hashtable << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, device_num_kvs);
 
         uint32_t num_kvs;
         cudaMemcpy(&num_kvs, device_num_kvs, sizeof(uint32_t), cudaMemcpyDeviceToHost);

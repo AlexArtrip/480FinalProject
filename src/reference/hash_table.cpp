@@ -22,7 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
-#include <mt19937ar.h>
+#include "mt19937ar.h"
 
 #include <cuda_runtime_api.h>
 #include "cuda_util.h"
