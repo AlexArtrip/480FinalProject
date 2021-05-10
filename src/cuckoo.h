@@ -1,6 +1,6 @@
 #pragma once
 #include "vector"
-#include "hash_table.h"
+#include "ht_constants.h"
 
 namespace Cuckoo {
     KeyValue* create_hashtable();

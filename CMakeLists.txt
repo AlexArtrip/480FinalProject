@@ -13,8 +13,9 @@ string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_35,code=sm_35")
 
 set(SOURCE_FILES src/main.cpp src/test.cpp src/linearprobing.h src/linearprobing.cu
         #src/definitions.h src/hash_functions.cu src/hash_functions.h src/hash_table.cuh
-        src/cuckoo.cu src/cuckoo.h src/hash_table.h src/hash_table.cuh src/hash_functions.h 
-	src/hash_functions.cu src/mt19937ar.cpp src/mt19937ar.h)
+        src/cuckoo.cu src/cuckoo.h src/ht_constants.h src/hash_table.cuh src/hash_functions.h 
+	src/hash_functions.cu src/mt19937ar.cpp src/mt19937ar.h src/hash_table.cu
+	src/hash_table.cpp src/hash_table.h src/definitions.h)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 

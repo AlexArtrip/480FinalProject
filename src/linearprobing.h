@@ -1,6 +1,6 @@
 #pragma once
 #include "vector"
-#include "hash_table.h"
+#include "ht_constants.h"
 
 namespace LinearProbing {
     KeyValue* create_hashtable();

@@ -18,7 +18,7 @@
 #define CUDAHT__CUCKOO__SRC__LIBRARY__HASH_TABLE__CUH
 
 #include "definitions.h"
-//#include "hash_table.h"
+#include "hash_table.h"
 
 #include <driver_types.h>
 
