@@ -5,6 +5,7 @@
 #ifndef SIMPLECONCURRENTGPUHASHTABLE_HASH_TABLE_H
 #define SIMPLECONCURRENTGPUHASHTABLE_HASH_TABLE_H
 
+#include <stdint.h>
 struct KeyValue
 {
     uint32_t key;
