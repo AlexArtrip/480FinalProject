@@ -100,11 +100,12 @@ int main()
         printf("Initializing keyvalue pairs with random numbers...\n");
 
         std::vector<KeyValue> insert_kvs = generate_random_keyvalues(rnd, kNumKeyValues);
-        std::vector<KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
+        //std::vector<KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
+        std::vector<KeyValue> lookup_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
 
         // Begin test
-        printf("Testing insertion/deletion of %d/%d elements into GPU hash table...\n",
-            (uint32_t)insert_kvs.size(), (uint32_t)delete_kvs.size());
+        printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
+            (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
 
         Time timer = start_timer();
 
@@ -112,12 +113,14 @@ int main()
 
         // Insert items into the hash table
         const uint32_t num_insert_batches = 16;
+        //const uint32_t num_insert_batches = 1;
         uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
         for (uint32_t i = 0; i < num_insert_batches; i++)
         {
             hashTable.insert_hashtable(insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
         }
 
+        /*
         // Delete items from the hash table
         const uint32_t num_delete_batches = 8;
         uint32_t num_deletes_per_batch = (uint32_t)delete_kvs.size() / num_delete_batches;
@@ -125,6 +128,19 @@ int main()
         {
             hashTable.delete_hashtable(delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
         }
+        */
+        const uint32_t num_lookup_batches = 8;
+        //const uint32_t num_lookup_batches = 1;
+        uint32_t num_lookups_per_batch = (uint32_t)lookup_kvs.size() / num_lookup_batches;
+        for (uint32_t i = 0; i < num_lookup_batches; i++)
+        {
+            hashTable.lookup_hashtable(lookup_kvs.data() + i * num_lookups_per_batch, num_lookups_per_batch);
+        }
+
+
+
+
+
 
         // Get all the key-values from the hash table
         std::vector<KeyValue> kvs = hashTable.iterate_hashtable();
@@ -135,9 +151,9 @@ int main()
         printf("Total time (including memory copies, readback, etc): %f ms (%f million keys/second)\n", milliseconds,
             kNumKeyValues / seconds / 1000000.0f);
 
-        test_unordered_map(insert_kvs, delete_kvs);
+        //test_unordered_map(insert_kvs, delete_kvs);
 
-        test_correctness(insert_kvs, delete_kvs, kvs);
+        //test_correctness(insert_kvs, delete_kvs, kvs);
 
         printf("Success\n");
     }
