@@ -8,6 +8,7 @@ namespace Cuckoo {
 //        const unsigned key) {   //TODO:: might need to change type sig
 //        return (x ^ key + y) % kStashSize;
 //    }
+    inline __device__ __host__
     unsigned stash_hash_function(const unsigned key) {   //TODO:: might need to change type sig
         return (2720648079 ^ key + 13) % kStashSize;
     }
@@ -43,7 +44,7 @@ namespace Cuckoo {
             destroy_hashtable(table);
         }
         virtual void insert_hashtable(const KeyValue* kvs, uint num_kvs) {
-            Cuckoo::insert_hashtable(table, hashTableCapacity, max_iterations, kvs, num_kvs, max_iterations);
+            Cuckoo::insert_hashtable(table, hashTableCapacity, max_iterations, kvs, num_kvs);
         }
         virtual void lookup_hashtable(KeyValue* kvs, uint num_kvs) {
             Cuckoo::lookup_hashtable(table, hashTableCapacity, kvs, num_kvs);

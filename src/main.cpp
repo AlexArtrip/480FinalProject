@@ -11,6 +11,7 @@
 //using namespace LinearProbing;
 // Create random keys/values in the range [0, kEmpty)
 // kEmpty is used to indicate an empty slot
+
 std::vector<KeyValue> generate_random_keyvalues(std::mt19937& rnd, uint32_t numkvs)
 {
     std::uniform_int_distribution<uint32_t> dis(0, kEmpty - 1);
@@ -22,7 +23,7 @@ std::vector<KeyValue> generate_random_keyvalues(std::mt19937& rnd, uint32_t numk
     {
         uint32_t rand0 = dis(rnd);
         uint32_t rand1 = dis(rnd);
-        kvs.push_back(KeyValue{rand0, rand1});
+        kvs.push_back(makeEntry(rand0, rand1));
     }
 
     return kvs;
@@ -67,11 +68,11 @@ void test_unordered_map(std::vector<KeyValue> insert_kvs, std::vector<KeyValue> 
         std::unordered_map<uint32_t, uint32_t> kvs_map;
         for (auto& kv : insert_kvs) 
         {
-            kvs_map[kv.key] = kv.value;
+            kvs_map[getKey(kv)] = getValue(kv);
         }
         for (auto& kv : delete_kvs)
         {
-            auto i = kvs_map.find(kv.key);
+            auto i = kvs_map.find(getKey(kv));
             if (i != kvs_map.end())
                 kvs_map.erase(i);
         }

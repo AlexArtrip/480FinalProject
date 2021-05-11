@@ -4,6 +4,23 @@
 #include "cuckoo.h"
 
 namespace Cuckoo {
+    //! Makes an 64-bit KeyValue out of a key-value pair for the hash table.
+    inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
+        return (KeyValue(key) << 32) + value;
+    }
+
+    //! Returns the key of an KeyValue.
+    inline __device__ __host__ unsigned get_key(KeyValue entry) {
+        return (unsigned)(entry >> 32);
+    }
+
+    //! Returns the value of an KeyValue.
+    inline __device__ __host__ unsigned get_value(KeyValue entry) {
+        return (unsigned)(entry & 0xffffffff);
+    }
+
+
+
     // 32 bit Murmur3 hash
     __device__ uint hash(int hash_id, uint k, uint capacity) {
         k ^= k >> 16;
@@ -51,29 +68,30 @@ namespace Cuckoo {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs) {
             KeyValue entry = kvs[threadid];
+            unsigned key = get_key(entry);
             // The key is always inserted into its first slot at the start.
-            uint slot = hash(0, entry.key, capacity);
+            uint location = hash(0, key, capacity);
 
             // Keep inserting until an empty slot is found or the eviction chain grows too large.
             for (unsigned its = 1; its <= max_iteration_attempts; its++) {
                 // Insert the new entry.
-                entry = atomicExch(hashtable[location], entry);
-
+                entry = atomicExch(&hashtable[location], entry);
+                key = get_key(entry);
                 // If no key was evicted, we're done.
-                if (entry.key == kEmpty) {
+                if (key == kEmpty) {
                     // *iterations_used = its;
                     break;
                 }
 
                 // Otherwise, determine where the evicted key will go.
-                location = determine_next_location(table_size, entry.key, location);
+                location = determine_next_location(capacity, key, location);
             }
 
-            if (entry.key != kEmpty) {
+            if (key != kEmpty) {
                 // Shove it into the stash.
-                unsigned slot = stash_hash_function(entry.key);
+                unsigned slot = stash_hash_function(key);
                 KeyValue *stash = hashtable + capacity;
-                KeyValue replaced_entry = atomicCAS(stash + slot, kvEmpty, entry);
+                KeyValue replaced_entry = atomicCAS((stash + slot), kvEmpty, entry);
 //                if (replaced_entry != kEmpty) {
 //                    return false;
 //                } else {
@@ -127,23 +145,23 @@ namespace Cuckoo {
     __global__ void gpu_hashtable_lookup(KeyValue *hashtable, uint capacity, KeyValue *kvs, unsigned int numkvs) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs) {
-            uint key = kvs[threadid].key;
-            Entry slot0 = hashtable[hash(0, key, capacity)];
-            if (slot0.key == key) {
-                kvs[threadid].value = slot0.value;
+            uint key = get_key(kvs[threadid]);
+            KeyValue slot0 = hashtable[hash(0, key, capacity)];
+            if (get_key(slot0) == key) {
+                kvs[threadid] = slot0;
                 return;
             }
-            Entry slot1 = hashtable[hash(1, key, capacity)];
-            if (slot1.key == key) {
-                kvs[threadid].value = slot1.value;
+            KeyValue slot1 = hashtable[hash(1, key, capacity)];
+            if (get_key(slot1) == key) {
+                kvs[threadid] = slot1;
                 return;
             }
-            Entry stash = hashtable[hash(1, key, capacity)];
-            if (stash.key == key) {
-                kvs[threadid].value = stash.value;
+            KeyValue stash = hashtable[hash(1, key, capacity)];
+            if (get_key(stash) == key) {
+                kvs[threadid] = stash;
                 return;
             }
-            kvs[threadid].value = kEmpty;
+            kvs[threadid] = make_entry(key, kEmpty);
         }
     }
 
@@ -185,33 +203,30 @@ namespace Cuckoo {
     // Delete each key in kvs from the hash table, if the key exists
     // A deleted key is left in the hash table, but its value is set to kEmpty
     // Deleted keys are not reused; once a key is assigned a slot, it never moves
-    __global__ void gpu_hashtable_delete(KeyValue *hashtable, uint capacity, uint max_iteration_attempts,
-                                         const KeyValue *kvs, unsigned int numkvs) {
+    __global__ void gpu_hashtable_delete(KeyValue *hashtable, uint capacity, const KeyValue *kvs, unsigned int numkvs) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs) {
-            uint key = kvs[threadid].key;
+            uint key = get_key(kvs[threadid]);
             // TODO fix!!!
-            Entry slot0 = hashtable[hash(0, key, capacity)];
-            if (slot0.key == key) {
+            KeyValue slot0 = hashtable[hash(0, key, capacity)];
+            if (get_key(slot0) == key) {
                 hashtable[threadid] = kvEmpty;
                 return;
             }
-            Entry slot1 = hashtable[hash(1, key, capacity)];
-            if (slot1.key == key) {
+            KeyValue slot1 = hashtable[hash(1, key, capacity)];
+            if (get_key(slot1) == key) {
                 hashtable[threadid] = kvEmpty;
                 return;
             }
-            Entry stash = hashtable[hash(1, key, capacity)];
-            if (stash.key == key) {
+            KeyValue stash = hashtable[hash(1, key, capacity)];
+            if (get_key(stash) == key) {
                 hashtable[threadid] = kvEmpty;
                 return;
             }
-            kvs[threadid].value = kEmpty;
         }
     }
 
-    void delete_hashtable(KeyValue *pHashTable, uint capacity, uint max_iteration_attempts,
-                          const KeyValue *kvs, uint num_kvs) {
+    void delete_hashtable(KeyValue *pHashTable, uint capacity, const KeyValue *kvs, uint num_kvs) {
         // Copy the keyvalues to the GPU
         KeyValue *device_kvs;
         cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs);
@@ -250,8 +265,8 @@ namespace Cuckoo {
     __global__ void gpu_iterate_hashtable(KeyValue *pHashTable, uint capacity, KeyValue *kvs, uint *kvs_size) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < capacity) {
-            if (pHashTable[threadid].key != kEmpty) {
-                uint value = pHashTable[threadid].value;
+            if (get_key(pHashTable[threadid]) != kEmpty) {
+                uint value = get_value(pHashTable[threadid]);
                 if (value != kEmpty) {
                     uint size = atomicAdd(kvs_size, 1);
                     kvs[size] = pHashTable[threadid];

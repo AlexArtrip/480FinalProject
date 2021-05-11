@@ -3,6 +3,21 @@
 #include "vector"
 #include "linearprobing.h"
 namespace LinearProbing {
+    //! Makes an 64-bit Entry out of a key-value pair for the hash table.
+    inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
+        return (KeyValue(key) << 32) + value;
+    }
+
+    //! Returns the key of an Entry.
+    inline __device__ __host__ unsigned get_key(KeyValue entry) {
+        return (unsigned)(entry >> 32);
+    }
+
+    //! Returns the value of an Entry.
+    inline __device__ __host__ unsigned get_value(KeyValue entry) {
+        return (unsigned)(entry & 0xffffffff);
+    }
+
     // 32 bit Murmur3 hash
     __device__ uint hash(uint k, uint capacity)
     {
@@ -34,16 +49,16 @@ namespace LinearProbing {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs)
         {
-            uint key = kvs[threadid].key;
-            uint value = kvs[threadid].value;
+            uint key = get_key(kvs[threadid]);
+            uint value = get_value(kvs[threadid]);
             uint slot = hash(key, capacity);
 
             while (true)
             {
-                uint prev = atomicCAS(&hashtable[slot].key, kEmpty, key);
+                uint prev = atomicCAS((uint *)&hashtable[slot], kEmpty, key);
                 if (prev == kEmpty || prev == key)
                 {
-                    hashtable[slot].value = value;
+                    hashtable[slot] = kvs[threadid];
                     return;
                 }
 
@@ -94,19 +109,19 @@ namespace LinearProbing {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs)
         {
-            uint key = kvs[threadid].key;
+            uint key = get_key(kvs[threadid]);
             uint slot = hash(key, capacity);
 
             while (true)
             {
-                if (hashtable[slot].key == key)
+                if (get_key(hashtable[slot]) == key)
                 {
-                    kvs[threadid].value = hashtable[slot].value;
+                    kvs[threadid] = hashtable[slot];
                     return;
                 }
-                if (hashtable[slot].key == kEmpty)
+                if (get_key(hashtable[slot]) == kEmpty)
                 {
-                    kvs[threadid].value = kEmpty;
+                    kvs[threadid] = make_entry(key, kEmpty);
                     return;
                 }
                 slot = (slot + 1) & (capacity - 1);
@@ -158,17 +173,16 @@ namespace LinearProbing {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs)
         {
-            uint key = kvs[threadid].key;
+            uint key = get_key(kvs[threadid]);
             uint slot = hash(key, capacity);
-
             while (true)
             {
-                if (hashtable[slot].key == key)
+                if (get_key(hashtable[slot]) == key)
                 {
-                    hashtable[slot].value = kEmpty;
+                    hashtable[slot] = make_entry(key, kEmpty);
                     return;
                 }
-                if (hashtable[slot].key == kEmpty)
+                if (get_key(hashtable[slot]) == kEmpty)
                 {
                     return;
                 }
@@ -219,9 +233,9 @@ namespace LinearProbing {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < capacity)
         {
-            if (pHashTable[threadid].key != kEmpty)
+            if (get_key(pHashTable[threadid]) != kEmpty)
             {
-                uint value = pHashTable[threadid].value;
+                uint value = get_value(pHashTable[threadid]);
                 if (value != kEmpty)
                 {
                     uint size = atomicAdd(kvs_size, 1);

@@ -9,11 +9,32 @@
 
 typedef uint32_t uint;
 
+typedef uint64_t KeyValue;
+
+//! Makes an 64-bit Entry out of a key-value pair for the hash table.
+inline KeyValue makeEntry(unsigned key, unsigned value) {
+    return (KeyValue(key) << 32) + value;
+}
+
+//! Returns the key of an Entry.
+inline unsigned getKey(KeyValue entry) {
+    return (unsigned)(entry >> 32);
+}
+
+//! Returns the value of an Entry.
+inline unsigned getValue(KeyValue entry) {
+    return (unsigned)(entry & 0xffffffff);
+}
+
+
+/*
 struct KeyValue
 {
     uint32_t key;
     uint32_t value;
 };
+*/
+
 
 const uint32_t kHashTableCapacity = 128 * 1024 * 1024;
 //const uint32_t kHashTableCapacity = 32 * 512 * 1024;
@@ -22,7 +43,8 @@ const uint32_t kNumKeyValues = (kHashTableCapacity / 10)* 9;
 
 const uint32_t kEmpty = 0xffffffff;
 
-const KeyValue kvEmpty = {kEmpty, kEmpty};
+//const KeyValue kvEmpty = makeEntry(kEmpty, kEmpty);
+const KeyValue kvEmpty = 0xffffffffffffffff;
 
 class HashTable {
 public:
@@ -36,5 +58,6 @@ protected:
     uint32_t numKeyValues = hashTableCapacity / 2;
     KeyValue* table;
 };
+
 
 #endif //GPUHASHTABLES_HASH_TABLE_H
