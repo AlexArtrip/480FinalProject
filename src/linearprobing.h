@@ -42,5 +42,8 @@ namespace LinearProbing {
         virtual std::vector<KeyValue> iterate_hashtable() {
             return LinearProbing::iterate_hashtable(table, hashTableCapacity);
         }
+        virtual string name() {
+            return "Linear Probing ";
+        }
     };
 }

@@ -55,5 +55,8 @@ namespace Cuckoo {
         virtual std::vector<KeyValue> iterate_hashtable() {
             return Cuckoo::iterate_hashtable(table, hashTableCapacity);
         }
+        virtual string name() {
+            return "Standard Cuckoo ";
+        }
     };
 }

@@ -6,26 +6,26 @@
 #define GPUHASHTABLES_HASH_TABLE_H
 
 #include <stdint.h>
+#include <string>
 
 typedef uint32_t uint;
 
 typedef uint64_t KeyValue;
 
 //! Makes an 64-bit Entry out of a key-value pair for the hash table.
-inline KeyValue makeEntry(unsigned key, unsigned value) {
+inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
     return (KeyValue(key) << 32) + value;
 }
 
 //! Returns the key of an Entry.
-inline unsigned getKey(KeyValue entry) {
+inline __device__ __host__ unsigned get_key(KeyValue entry) {
     return (unsigned)(entry >> 32);
 }
 
 //! Returns the value of an Entry.
-inline unsigned getValue(KeyValue entry) {
+inline __device__ __host__ unsigned get_value(KeyValue entry) {
     return (unsigned)(entry & 0xffffffff);
 }
-
 
 /*
 struct KeyValue
@@ -43,8 +43,8 @@ const uint32_t kNumKeyValues = (kHashTableCapacity / 10)* 9;
 
 const uint32_t kEmpty = 0xffffffff;
 
-//const KeyValue kvEmpty = makeEntry(kEmpty, kEmpty);
-const KeyValue kvEmpty = 0xffffffffffffffff;
+const KeyValue kvEmpty = make_entry(kEmpty, kEmpty);
+//const KeyValue kvEmpty = 0xffffffffffffffff;
 
 class HashTable {
 public:
@@ -52,6 +52,7 @@ public:
     virtual void lookup_hashtable(KeyValue* kvs, uint32_t num_kvs) = 0;
     virtual void delete_hashtable(const KeyValue* kvs, uint32_t num_kvs) = 0;
     virtual std::vector<KeyValue> iterate_hashtable() = 0;
+    virtual string name() = 0;
 
 protected:
     uint32_t hashTableCapacity = 128 * 1024 * 1024;

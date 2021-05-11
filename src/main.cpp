@@ -23,14 +23,14 @@ std::vector<KeyValue> generate_random_keyvalues(std::mt19937& rnd, uint32_t numk
     {
         uint32_t rand0 = dis(rnd);
         uint32_t rand1 = dis(rnd);
-        kvs.push_back(makeEntry(rand0, rand1));
+        kvs.push_back(make_entry(rand0, rand1));
     }
 
     return kvs;
 }
 
 // return numshuffledkvs random items from kvs
-std::vector<KeyValue> shuffle_keyvalues(std::mt19937& rnd, std::vector<KeyValue> kvs, uint32_t numshuffledkvs)
+std::vector<KeyValue> shuffle_keyvalues(std::mt19937& rnd, std::vector<KeyValue>& kvs, uint32_t numshuffledkvs)
 {
     std::shuffle(kvs.begin(), kvs.end(), rnd);
 
@@ -58,7 +58,7 @@ double get_elapsed_time(Time start)
     return us.count() / 1000.0f;
 }
 
-void test_unordered_map(std::vector<KeyValue> insert_kvs, std::vector<KeyValue> delete_kvs)
+void test_unordered_map(std::vector<KeyValue>& insert_kvs, std::vector<KeyValue>& delete_kvs)
 {
     Time timer = start_timer();
 
@@ -68,11 +68,11 @@ void test_unordered_map(std::vector<KeyValue> insert_kvs, std::vector<KeyValue> 
         std::unordered_map<uint32_t, uint32_t> kvs_map;
         for (auto& kv : insert_kvs) 
         {
-            kvs_map[getKey(kv)] = getValue(kv);
+            kvs_map[get_key(kv)] = getValue(kv);
         }
         for (auto& kv : delete_kvs)
         {
-            auto i = kvs_map.find(getKey(kv));
+            auto i = kvs_map.find(get_key(kv));
             if (i != kvs_map.end())
                 kvs_map.erase(i);
         }
@@ -84,7 +84,56 @@ void test_unordered_map(std::vector<KeyValue> insert_kvs, std::vector<KeyValue> 
         milliseconds, kNumKeyValues / seconds / 1000000.0f);
 }
 
-void test_correctness(std::vector<KeyValue>, std::vector<KeyValue>, std::vector<KeyValue>);
+void test_correctness(std::vector<KeyValue>&, std::vector<KeyValue>&, std::vector<KeyValue>&);
+
+void run_test(HashTable& hashTable, std::vector<KeyValue>& insert_kvs,
+              std::vector<KeyValue>& delete_kvs, std::vector<KeyValue>& lookup_kvs) {
+    // Begin test
+    Time timer = start_timer();
+
+    // Insert items into the hash table
+    const uint32_t num_insert_batches = 16;
+    //const uint32_t num_insert_batches = 1;
+    uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
+    for (uint32_t i = 0; i < num_insert_batches; i++)
+    {
+        hashTable.insert_hashtable(insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
+    }
+
+    /*
+    // Delete items from the hash table
+    const uint32_t num_delete_batches = 8;
+    uint32_t num_deletes_per_batch = (uint32_t)delete_kvs.size() / num_delete_batches;
+    for (uint32_t i = 0; i < num_delete_batches; i++)
+    {
+        hashTable.delete_hashtable(delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
+    }
+    */
+    const uint32_t num_lookup_batches = 8;
+    //const uint32_t num_lookup_batches = 1;
+    uint32_t num_lookups_per_batch = (uint32_t)lookup_kvs.size() / num_lookup_batches;
+    for (uint32_t i = 0; i < num_lookup_batches; i++)
+    {
+        hashTable.lookup_hashtable(lookup_kvs.data() + i * num_lookups_per_batch, num_lookups_per_batch);
+    }
+
+    // Get all the key-values from the hash table
+    std::vector<KeyValue> kvs = hashTable.iterate_hashtable();
+
+    // Summarize results
+    double milliseconds = get_elapsed_time(timer);
+    double seconds = milliseconds / 1000.0f;
+    printf("%s Total time (including memory copies, readback, etc): %f ms (%f million keys/second)\n",
+           hashTable.name(),
+           milliseconds,
+           kNumKeyValues / seconds / 1000000.0f);
+
+    //test_unordered_map(insert_kvs, delete_kvs);
+
+    //test_correctness(insert_kvs, delete_kvs, kvs);
+
+    printf("Success\n");
+}
 
 int main() 
 {
@@ -96,67 +145,19 @@ int main()
 
     printf("Random number generator seed = %u\n", seed);
 
-    while (true)
-    {
+    for (uint32_t i = 0; i < 5; i++) {
         printf("Initializing keyvalue pairs with random numbers...\n");
 
         std::vector<KeyValue> insert_kvs = generate_random_keyvalues(rnd, kNumKeyValues);
         //std::vector<KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
         std::vector<KeyValue> lookup_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
 
-        // Begin test
         printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
-            (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
-
-        Time timer = start_timer();
-
-        LinearProbing::HashTableLP hashTable = LinearProbing::HashTableLP();
-
-        // Insert items into the hash table
-        const uint32_t num_insert_batches = 16;
-        //const uint32_t num_insert_batches = 1;
-        uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
-        for (uint32_t i = 0; i < num_insert_batches; i++)
-        {
-            hashTable.insert_hashtable(insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
-        }
-
-        /*
-        // Delete items from the hash table
-        const uint32_t num_delete_batches = 8;
-        uint32_t num_deletes_per_batch = (uint32_t)delete_kvs.size() / num_delete_batches;
-        for (uint32_t i = 0; i < num_delete_batches; i++)
-        {
-            hashTable.delete_hashtable(delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
-        }
-        */
-        const uint32_t num_lookup_batches = 8;
-        //const uint32_t num_lookup_batches = 1;
-        uint32_t num_lookups_per_batch = (uint32_t)lookup_kvs.size() / num_lookup_batches;
-        for (uint32_t i = 0; i < num_lookup_batches; i++)
-        {
-            hashTable.lookup_hashtable(lookup_kvs.data() + i * num_lookups_per_batch, num_lookups_per_batch);
-        }
-
-
-
-
-
-
-        // Get all the key-values from the hash table
-        std::vector<KeyValue> kvs = hashTable.iterate_hashtable();
-
-        // Summarize results
-        double milliseconds = get_elapsed_time(timer);
-        double seconds = milliseconds / 1000.0f;
-        printf("Total time (including memory copies, readback, etc): %f ms (%f million keys/second)\n", milliseconds,
-            kNumKeyValues / seconds / 1000000.0f);
-
-        //test_unordered_map(insert_kvs, delete_kvs);
-
-        //test_correctness(insert_kvs, delete_kvs, kvs);
-
-        printf("Success\n");
+               (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
+        HashTable lp = LinearProbing::HashTableLP();
+        HashTable cuc = Cuckoo::HashTableC();
+        run_test(lp, insert_kvs, delete_kvs, lookup_kvs);
+        run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
     }
 
     return 0;

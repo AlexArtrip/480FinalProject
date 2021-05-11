@@ -4,22 +4,6 @@
 #include "cuckoo.h"
 
 namespace Cuckoo {
-    //! Makes an 64-bit KeyValue out of a key-value pair for the hash table.
-    inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
-        return (KeyValue(key) << 32) + value;
-    }
-
-    //! Returns the key of an KeyValue.
-    inline __device__ __host__ unsigned get_key(KeyValue entry) {
-        return (unsigned)(entry >> 32);
-    }
-
-    //! Returns the value of an KeyValue.
-    inline __device__ __host__ unsigned get_value(KeyValue entry) {
-        return (unsigned)(entry & 0xffffffff);
-    }
-
-
 
     // 32 bit Murmur3 hash
     __device__ uint hash(int hash_id, uint k, uint capacity) {

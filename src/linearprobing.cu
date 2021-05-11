@@ -3,20 +3,6 @@
 #include "vector"
 #include "linearprobing.h"
 namespace LinearProbing {
-    //! Makes an 64-bit Entry out of a key-value pair for the hash table.
-    inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
-        return (KeyValue(key) << 32) + value;
-    }
-
-    //! Returns the key of an Entry.
-    inline __device__ __host__ unsigned get_key(KeyValue entry) {
-        return (unsigned)(entry >> 32);
-    }
-
-    //! Returns the value of an Entry.
-    inline __device__ __host__ unsigned get_value(KeyValue entry) {
-        return (unsigned)(entry & 0xffffffff);
-    }
 
     // 32 bit Murmur3 hash
     __device__ uint hash(uint k, uint capacity)
