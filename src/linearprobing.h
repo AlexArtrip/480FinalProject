@@ -3,15 +3,15 @@
 #include "hash_table.h"
 
 namespace LinearProbing {
-    KeyValue* create_hashtable(std::uint32_t size);
+    KeyValue* create_hashtable(uint size);
 
-    void insert_hashtable(KeyValue* hashtable, std::uint32_t size, const KeyValue* kvs, std::uint32_t num_kvs);
+    void insert_hashtable(KeyValue* hashtable, uint size, const KeyValue* kvs, uint num_kvs);
 
-    void lookup_hashtable(KeyValue* hashtable, std::uint32_t size, KeyValue* kvs, std::uint32_t num_kvs);
+    void lookup_hashtable(KeyValue* hashtable, uint size, KeyValue* kvs, uint num_kvs);
 
-    void delete_hashtable(KeyValue* hashtable, std::uint32_t size, const KeyValue* kvs, std::uint32_t num_kvs);
+    void delete_hashtable(KeyValue* hashtable, uint size, const KeyValue* kvs, uint num_kvs);
 
-    std::vector<KeyValue> iterate_hashtable(KeyValue* hashtable, std::uint32_t size);
+    std::vector<KeyValue> iterate_hashtable(KeyValue* hashtable, uint size);
 
     void destroy_hashtable(KeyValue* hashtable);
 
@@ -22,7 +22,7 @@ namespace LinearProbing {
             numKeyValues = hashTableCapacity / 2;
             table = create_hashtable(hashTableCapacity);
         }
-        HashTableLP(std::uint32_t size) {
+        HashTableLP(uint size) {
             hashTableCapacity = size;
             numKeyValues = size / 2;
             table = create_hashtable(hashTableCapacity);
@@ -30,13 +30,13 @@ namespace LinearProbing {
         ~HashTableLP() {
             destroy_hashtable(table);
         }
-        virtual void insert_hashtable(const KeyValue* kvs, std::uint32_t num_kvs) {
+        virtual void insert_hashtable(const KeyValue* kvs, uint num_kvs) {
             LinearProbing::insert_hashtable(table, hashTableCapacity, kvs, num_kvs);
         }
-        virtual void lookup_hashtable(KeyValue* kvs, std::uint32_t num_kvs) {
+        virtual void lookup_hashtable(KeyValue* kvs, uint num_kvs) {
             LinearProbing::lookup_hashtable(table, hashTableCapacity, kvs, num_kvs);
         }
-        virtual void delete_hashtable(const KeyValue* kvs, std::uint32_t num_kvs) {
+        virtual void delete_hashtable(const KeyValue* kvs, uint num_kvs) {
             LinearProbing::delete_hashtable(table, hashTableCapacity, kvs, num_kvs);
         }
         virtual std::vector<KeyValue> iterate_hashtable() {

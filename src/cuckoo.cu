@@ -5,31 +5,37 @@
 
 namespace Cuckoo {
     // 32 bit Murmur3 hash
-    __device__ std::uint32_t hash(int hash_id, std::uint32_t k, std::uint32_t capacity)
-    {
+    __device__ uint hash(int hash_id, uint k, uint capacity) {
+        k ^= k >> 16;
         if (hash_id == 0) {
-            k ^= k >> 16;
             k *= 0x85ebca6b;
             k ^= k >> 13;
             k *= 0xc2b2ae35;
-            k ^= k >> 16;
-        }
-        else {
-            k ^= k >> 16;
+        } else {
             k *= 0xcc9e2d51;
             k ^= k >> 13;
             k *= 0x1b873593;
-            k ^= k >> 16;
         }
+        k ^= k >> 16;
         return k & (capacity - 1);
 
     }
 
+    //! Determine where to insert the key next.  The hash functions are used in round-robin order.
+    __device__ unsigned determine_next_location(const unsigned table_size,
+                                                const unsigned key,
+                                                const unsigned previous_location) {
+        uint next_location = hash(0, key, table_size);
+        if (next_location == previous_location) {
+            return hash(1, key, table_size);
+        }
+        return next_location;
+    }
+
     // Create a hash table. For linear probing, this is just an array of KeyValues
-    KeyValue* create_hashtable(std::uint32_t capacity)
-    {
+    KeyValue *create_hashtable(uint capacity) {
         // Allocate memory
-        KeyValue* hashtable;
+        KeyValue *hashtable;
         cudaMalloc(&hashtable, sizeof(KeyValue) * (capacity + kStashSize));
 
         // Initialize hash table to empty
@@ -40,33 +46,47 @@ namespace Cuckoo {
     }
 
     // Insert the key/values in kvs into the hashtable
-    __global__ void gpu_hashtable_insert(KeyValue* hashtable, std::uint32_t capacity, const KeyValue* kvs, unsigned int numkvs)
-    {
+    __global__ void gpu_hashtable_insert(KeyValue *hashtable, uint capacity, uint max_iteration_attempts,
+                                         const KeyValue *kvs, unsigned int numkvs) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (threadid < numkvs)
-        {
-            std::uint32_t key = kvs[threadid].key;
-            std::uint32_t value = kvs[threadid].value;
-            std::uint32_t slot = hash(0, key, capacity);
+        if (threadid < numkvs) {
+            KeyValue entry = kvs[threadid];
+            // The key is always inserted into its first slot at the start.
+            uint slot = hash(0, entry.key, capacity);
 
-            while (true)
-            {
-                std::uint32_t prev = atomicCAS(&hashtable[slot].key, kEmpty, key);
-                if (prev == kEmpty || prev == key)
-                {
-                    hashtable[slot].value = value;
-                    return;
+            // Keep inserting until an empty slot is found or the eviction chain grows too large.
+            for (unsigned its = 1; its <= max_iteration_attempts; its++) {
+                // Insert the new entry.
+                entry = atomicExch(hashtable[location], entry);
+
+                // If no key was evicted, we're done.
+                if (entry.key == kEmpty) {
+                    // *iterations_used = its;
+                    break;
                 }
 
-                slot = (slot + 1) & (capacity - 1);
+                // Otherwise, determine where the evicted key will go.
+                location = determine_next_location(table_size, entry.key, location);
+            }
+
+            if (entry.key != kEmpty) {
+                // Shove it into the stash.
+                unsigned slot = stash_hash_function(entry.key);
+                KeyValue *stash = hashtable + capacity;
+                KeyValue replaced_entry = atomicCAS(stash + slot, kvEmpty, entry);
+//                if (replaced_entry != kEmpty) {
+//                    return false;
+//                } else {
+//                    atomicAdd(stash_count, 1);
+//                }
             }
         }
     }
 
-    void insert_hashtable(KeyValue* pHashTable, std::uint32_t capacity, const KeyValue* kvs, std::uint32_t num_kvs)
-    {
+    void insert_hashtable(KeyValue *pHashTable, uint capacity, uint max_iteration_attempts, const KeyValue *kvs,
+                          uint num_kvs) {
         // Copy the keyvalues to the GPU
-        KeyValue* device_kvs;
+        KeyValue *device_kvs;
         cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs);
         cudaMemcpy(device_kvs, kvs, sizeof(KeyValue) * num_kvs, cudaMemcpyHostToDevice);
 
@@ -82,9 +102,13 @@ namespace Cuckoo {
 
         cudaEventRecord(start);
 
+//        unsigned *d_stash_count = NULL;
+//        CUDA_SAFE_CALL(cudaMalloc((void**)&d_stash_count, sizeof(unsigned)));
+
         // Insert all the keys into the hash table
-        int gridsize = ((std::uint32_t)num_kvs + threadblocksize - 1) / threadblocksize;
-        gpu_hashtable_insert << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, (std::uint32_t)num_kvs);
+        int gridsize = ((uint) num_kvs + threadblocksize - 1) / threadblocksize;
+        gpu_hashtable_insert <<<gridsize, threadblocksize>>>(pHashTable, capacity, max_iteration_attempts,
+                                                             device_kvs, (uint) num_kvs);
 
         cudaEventRecord(stop);
 
@@ -94,41 +118,38 @@ namespace Cuckoo {
         cudaEventElapsedTime(&milliseconds, start, stop);
         float seconds = milliseconds / 1000.0f;
         printf("    GPU inserted %d items in %f ms (%f million keys/second)\n",
-               num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
+               num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f);
 
         cudaFree(device_kvs);
     }
 
     // Lookup keys in the hashtable, and return the values
-    __global__ void gpu_hashtable_lookup(KeyValue* hashtable, std::uint32_t capacity, KeyValue* kvs, unsigned int numkvs)
-    {
+    __global__ void gpu_hashtable_lookup(KeyValue *hashtable, uint capacity, KeyValue *kvs, unsigned int numkvs) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (threadid < numkvs)
-        {
-            std::uint32_t key = kvs[threadid].key;
-            std::uint32_t slot = hash(0, key, capacity);
-
-            while (true)
-            {
-                if (hashtable[slot].key == key)
-                {
-                    kvs[threadid].value = hashtable[slot].value;
-                    return;
-                }
-                if (hashtable[slot].key == kEmpty)
-                {
-                    kvs[threadid].value = kEmpty;
-                    return;
-                }
-                slot = (slot + 1) & (capacity - 1);
+        if (threadid < numkvs) {
+            uint key = kvs[threadid].key;
+            Entry slot0 = hashtable[hash(0, key, capacity)];
+            if (slot0.key == key) {
+                kvs[threadid].value = slot0.value;
+                return;
             }
+            Entry slot1 = hashtable[hash(1, key, capacity)];
+            if (slot1.key == key) {
+                kvs[threadid].value = slot1.value;
+                return;
+            }
+            Entry stash = hashtable[hash(1, key, capacity)];
+            if (stash.key == key) {
+                kvs[threadid].value = stash.value;
+                return;
+            }
+            kvs[threadid].value = kEmpty;
         }
     }
 
-    void lookup_hashtable(KeyValue* pHashTable, std::uint32_t capacity, KeyValue* kvs, std::uint32_t num_kvs)
-    {
+    void lookup_hashtable(KeyValue *pHashTable, uint capacity, KeyValue *kvs, uint num_kvs) {
         // Copy the keyvalues to the GPU
-        KeyValue* device_kvs;
+        KeyValue *device_kvs;
         cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs);
         cudaMemcpy(device_kvs, kvs, sizeof(KeyValue) * num_kvs, cudaMemcpyHostToDevice);
 
@@ -145,8 +166,8 @@ namespace Cuckoo {
         cudaEventRecord(start);
 
         // Insert all the keys into the hash table
-        int gridsize = ((std::uint32_t)num_kvs + threadblocksize - 1) / threadblocksize;
-        gpu_hashtable_lookup << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, (std::uint32_t)num_kvs);
+        int gridsize = ((uint) num_kvs + threadblocksize - 1) / threadblocksize;
+        gpu_hashtable_lookup <<< gridsize, threadblocksize >>> (pHashTable, capacity, device_kvs, (uint) num_kvs);
 
         cudaEventRecord(stop);
 
@@ -156,7 +177,7 @@ namespace Cuckoo {
         cudaEventElapsedTime(&milliseconds, start, stop);
         float seconds = milliseconds / 1000.0f;
         printf("    GPU lookup %d items in %f ms (%f million keys/second)\n",
-               num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
+               num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f);
 
         cudaFree(device_kvs);
     }
@@ -164,34 +185,35 @@ namespace Cuckoo {
     // Delete each key in kvs from the hash table, if the key exists
     // A deleted key is left in the hash table, but its value is set to kEmpty
     // Deleted keys are not reused; once a key is assigned a slot, it never moves
-    __global__ void gpu_hashtable_delete(KeyValue* hashtable, std::uint32_t capacity, const KeyValue* kvs, unsigned int numkvs)
-    {
+    __global__ void gpu_hashtable_delete(KeyValue *hashtable, uint capacity, uint max_iteration_attempts,
+                                         const KeyValue *kvs, unsigned int numkvs) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (threadid < numkvs)
-        {
-            std::uint32_t key = kvs[threadid].key;
-            std::uint32_t slot = hash(0, key, capacity);
-
-            while (true)
-            {
-                if (hashtable[slot].key == key)
-                {
-                    hashtable[slot].value = kEmpty;
-                    return;
-                }
-                if (hashtable[slot].key == kEmpty)
-                {
-                    return;
-                }
-                slot = (slot + 1) & (capacity - 1);
+        if (threadid < numkvs) {
+            uint key = kvs[threadid].key;
+            // TODO fix!!!
+            Entry slot0 = hashtable[hash(0, key, capacity)];
+            if (slot0.key == key) {
+                hashtable[threadid] = kvEmpty;
+                return;
             }
+            Entry slot1 = hashtable[hash(1, key, capacity)];
+            if (slot1.key == key) {
+                hashtable[threadid] = kvEmpty;
+                return;
+            }
+            Entry stash = hashtable[hash(1, key, capacity)];
+            if (stash.key == key) {
+                hashtable[threadid] = kvEmpty;
+                return;
+            }
+            kvs[threadid].value = kEmpty;
         }
     }
 
-    void delete_hashtable(KeyValue* pHashTable, std::uint32_t capacity, const KeyValue* kvs, std::uint32_t num_kvs)
-    {
+    void delete_hashtable(KeyValue *pHashTable, uint capacity, uint max_iteration_attempts,
+                          const KeyValue *kvs, uint num_kvs) {
         // Copy the keyvalues to the GPU
-        KeyValue* device_kvs;
+        KeyValue *device_kvs;
         cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs);
         cudaMemcpy(device_kvs, kvs, sizeof(KeyValue) * num_kvs, cudaMemcpyHostToDevice);
 
@@ -208,8 +230,8 @@ namespace Cuckoo {
         cudaEventRecord(start);
 
         // Insert all the keys into the hash table
-        int gridsize = ((std::uint32_t)num_kvs + threadblocksize - 1) / threadblocksize;
-        gpu_hashtable_delete << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, (std::uint32_t)num_kvs);
+        int gridsize = ((uint) num_kvs + threadblocksize - 1) / threadblocksize;
+        gpu_hashtable_delete <<< gridsize, threadblocksize >>> (pHashTable, capacity, device_kvs, (uint) num_kvs);
 
         cudaEventRecord(stop);
 
@@ -219,36 +241,31 @@ namespace Cuckoo {
         cudaEventElapsedTime(&milliseconds, start, stop);
         float seconds = milliseconds / 1000.0f;
         printf("    GPU delete %d items in %f ms (%f million keys/second)\n",
-               num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
+               num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f);
 
         cudaFree(device_kvs);
     }
 
     // Iterate over every item in the hashtable; return non-empty key/values
-    __global__ void gpu_iterate_hashtable(KeyValue* pHashTable, std::uint32_t capacity, KeyValue* kvs, std::uint32_t* kvs_size)
-    {
+    __global__ void gpu_iterate_hashtable(KeyValue *pHashTable, uint capacity, KeyValue *kvs, uint *kvs_size) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
-        if (threadid < capacity)
-        {
-            if (pHashTable[threadid].key != kEmpty)
-            {
-                std::uint32_t value = pHashTable[threadid].value;
-                if (value != kEmpty)
-                {
-                    std::uint32_t size = atomicAdd(kvs_size, 1);
+        if (threadid < capacity) {
+            if (pHashTable[threadid].key != kEmpty) {
+                uint value = pHashTable[threadid].value;
+                if (value != kEmpty) {
+                    uint size = atomicAdd(kvs_size, 1);
                     kvs[size] = pHashTable[threadid];
                 }
             }
         }
     }
 
-    std::vector<KeyValue> iterate_hashtable(KeyValue* pHashTable, std::uint32_t capacity)
-    {
-        std::uint32_t* device_num_kvs;
-        cudaMalloc(&device_num_kvs, sizeof(std::uint32_t));
-        cudaMemset(device_num_kvs, 0, sizeof(std::uint32_t));
+    std::vector <KeyValue> iterate_hashtable(KeyValue *pHashTable, uint capacity) {
+        uint *device_num_kvs;
+        cudaMalloc(&device_num_kvs, sizeof(uint));
+        cudaMemset(device_num_kvs, 0, sizeof(uint));
 
-        KeyValue* device_kvs;
+        KeyValue *device_kvs;
         cudaMalloc(&device_kvs, sizeof(KeyValue) * kNumKeyValues);
 
         int mingridsize;
@@ -256,12 +273,12 @@ namespace Cuckoo {
         cudaOccupancyMaxPotentialBlockSize(&mingridsize, &threadblocksize, gpu_iterate_hashtable, 0, 0);
 
         int gridsize = (kHashTableCapacity + threadblocksize - 1) / threadblocksize;
-        gpu_iterate_hashtable << <gridsize, threadblocksize >> > (pHashTable, capacity, device_kvs, device_num_kvs);
+        gpu_iterate_hashtable <<< gridsize, threadblocksize >>> (pHashTable, capacity, device_kvs, device_num_kvs);
 
-        std::uint32_t num_kvs;
-        cudaMemcpy(&num_kvs, device_num_kvs, sizeof(std::uint32_t), cudaMemcpyDeviceToHost);
+        uint num_kvs;
+        cudaMemcpy(&num_kvs, device_num_kvs, sizeof(uint), cudaMemcpyDeviceToHost);
 
-        std::vector<KeyValue> kvs;
+        std::vector <KeyValue> kvs;
         kvs.resize(num_kvs);
 
         cudaMemcpy(kvs.data(), device_kvs, sizeof(KeyValue) * num_kvs, cudaMemcpyDeviceToHost);
@@ -273,8 +290,7 @@ namespace Cuckoo {
     }
 
     // Free the memory of the hashtable
-    void destroy_hashtable(KeyValue* pHashTable)
-    {
+    void destroy_hashtable(KeyValue *pHashTable) {
         cudaFree(pHashTable);
     }
 }
