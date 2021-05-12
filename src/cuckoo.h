@@ -10,26 +10,8 @@ namespace Cuckoo {
 //    }
 
     unsigned ComputeMaxIterations(const unsigned n,
-                                  const unsigned table_size,
-                                  const unsigned num_functions) {
-        float lg_input_size = (float)(log((double)n) / log(2.0));
-
-// #define CONSTANT_ITERATIONS
-//#ifdef CONSTANT_ITERATIONS
-//        // Set the maximum number of iterations to 7lg(N).
-//    const unsigned MAX_ITERATION_CONSTANT = 7;
-//    unsigned max_iterations = MAX_ITERATION_CONSTANT * lg_input_size;
-//#else
-        // Use an empirical formula for determining what the maximum number of
-        // iterations should be.  Works OK in most situations.
-        float load_factor = float(n) / table_size;
-        float ln_load_factor = (float)(log(load_factor) / log(2.71828183));
-
-        unsigned max_iterations = (unsigned)(4.0 * ceil(-1.0 / (0.028255 + 1.1594772 *
-                                                                           ln_load_factor)* lg_input_size));
-//#endif
-        return max_iterations;
-    }
+        const unsigned table_size,
+        const unsigned num_functions);
 
     KeyValue* create_hashtable(uint size, uint** stash_count);
 
@@ -52,13 +34,13 @@ namespace Cuckoo {
         HashTableC() {
             hashTableCapacity = kHashTableCapacity;
             numKeyValues = hashTableCapacity / 2;
-            max_iterations = ComputeMaxIterations(kNumKeyValues, kHashTableCapacity, 2);
+            max_iterations = Cuckoo::ComputeMaxIterations(kNumKeyValues, kHashTableCapacity, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
         HashTableC(uint size, uint expected_kvs) {
             hashTableCapacity = size;
             numKeyValues = size / 2;
-            max_iterations = ComputeMaxIterations(expected_kvs, size, 2);
+            max_iterations = Cuckoo::ComputeMaxIterations(expected_kvs, size, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
         ~HashTableC() {

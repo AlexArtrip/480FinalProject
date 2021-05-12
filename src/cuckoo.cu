@@ -7,6 +7,28 @@
 #include <thread>
 
 namespace Cuckoo {
+    unsigned ComputeMaxIterations(const unsigned n,
+        const unsigned table_size,
+        const unsigned num_functions) {
+        float lg_input_size = (float)(log((double)n) / log(2.0));
+
+        // #define CONSTANT_ITERATIONS
+        //#ifdef CONSTANT_ITERATIONS
+        //        // Set the maximum number of iterations to 7lg(N).
+        //    const unsigned MAX_ITERATION_CONSTANT = 7;
+        //    unsigned max_iterations = MAX_ITERATION_CONSTANT * lg_input_size;
+        //#else
+                // Use an empirical formula for determining what the maximum number of
+                // iterations should be.  Works OK in most situations.
+        float load_factor = float(n) / table_size;
+        float ln_load_factor = (float)(log(load_factor) / log(2.71828183));
+
+        unsigned max_iterations = (unsigned)(4.0 * ceil(-1.0 / (0.028255 + 1.1594772 *
+            ln_load_factor) * lg_input_size));
+        //#endif
+        return max_iterations;
+    }
+
     //! Makes an 64-bit Entry out of a key-value pair for the hash table.
     inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
         return (KeyValue(key) << 32) + value;
@@ -49,6 +71,7 @@ namespace Cuckoo {
                                                 const unsigned previous_location) {
         uint next_location = hash(0, key, table_size);
         if (next_location == previous_location) {
+            //return next_location + 1;
             return hash(1, key, table_size);
         }
         return next_location;
@@ -181,12 +204,14 @@ namespace Cuckoo {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs) {
             uint key = get_key(kvs[threadid]);
-            KeyValue slot0 = hashtable[hash(0, key, capacity)];
+            uint hash_val = hash(0, key, capacity);
+            KeyValue slot0 = hashtable[hash_val];
             if (get_key(slot0) == key) {
                 kvs[threadid] = slot0;
                 return;
             }
             KeyValue slot1 = hashtable[hash(1, key, capacity)];
+            //KeyValue slot1 = hashtable[hash_val + 1];
             if (get_key(slot1) == key) {
                 kvs[threadid] = slot1;
                 return;
