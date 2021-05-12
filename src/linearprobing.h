@@ -29,7 +29,9 @@ namespace LinearProbing {
             table = create_hashtable(hashTableCapacity);
         }
         ~HashTableLP() {
-            destroy_hashtable(table);
+            if (table) {
+                LinearProbing::destroy_hashtable(table);
+            }
         }
         virtual void insert_hashtable(const KeyValue* kvs, uint num_kvs) {
             LinearProbing::insert_hashtable(table, hashTableCapacity, kvs, num_kvs);
@@ -43,7 +45,10 @@ namespace LinearProbing {
         virtual std::vector<KeyValue> iterate_hashtable() {
             return LinearProbing::iterate_hashtable(table, hashTableCapacity);
         }
-        virtual const std::string name() {
+        virtual void destroy_hashtable() {
+            LinearProbing::destroy_hashtable(table);
+        }
+        virtual const char* name() {
             return "Linear Probing ";
         }
     };

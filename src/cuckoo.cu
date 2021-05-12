@@ -2,6 +2,9 @@
 #include "stdint.h"
 #include "vector"
 #include "cuckoo.h"
+#include "cuda_util.h"
+#include <chrono>
+#include <thread>
 
 namespace Cuckoo {
     //! Makes an 64-bit Entry out of a key-value pair for the hash table.
@@ -52,7 +55,7 @@ namespace Cuckoo {
     }
 
     // Create a hash table. For linear probing, this is just an array of KeyValues
-    KeyValue *create_hashtable(uint capacity, uint* stash_count) {
+    KeyValue *create_hashtable(uint capacity, uint** stash_count) {
         // Allocate memory
         KeyValue *hashtable;
         cudaMalloc(&hashtable, sizeof(KeyValue) * (capacity + kStashSize));
@@ -62,7 +65,11 @@ namespace Cuckoo {
         cudaMemset(hashtable, 0xff, sizeof(KeyValue) * (capacity + kStashSize));
 
         CUDA_SAFE_CALL(cudaMalloc((void**)stash_count, sizeof(uint)));
+        CUDA_SAFE_CALL(cudaMemset(*stash_count, 0, sizeof(uint)));
 
+        //printf("Hash table created successfully");
+        //std::chrono::seconds dura(5);
+        //std::this_thread::sleep_for(dura);
         return hashtable;
     }
 
@@ -74,25 +81,27 @@ namespace Cuckoo {
         if (threadid < numkvs) {
             KeyValue entry = kvs[threadid];
             unsigned key = get_key(entry);
+            unsigned prev_key = key;
             // The key is always inserted into its first slot at the start.
             uint location = hash(0, key, capacity);
 
             // Keep inserting until an empty slot is found or the eviction chain grows too large.
             for (unsigned its = 1; its <= max_iteration_attempts; its++) {
                 // Insert the new entry.
+                prev_key = key;
                 entry = atomicExch(&hashtable[location], entry);
                 key = get_key(entry);
-                // If no key was evicted, we're done.
-                if (key == kEmpty) {
+                // If no key was evicted or this key is already present, we're done.
+                if (key == kEmpty || prev_key == key) {
                     // *iterations_used = its;
-                    break;
+                    return;
                 }
-
                 // Otherwise, determine where the evicted key will go.
                 location = determine_next_location(capacity, key, location);
             }
 
             if (key != kEmpty) {
+                //printf("failed insert will stash now after max_iter = %u \n", max_iteration_attempts);
                 // Shove it into the stash.
                 unsigned slot = stash_hash_function(key);
                 KeyValue *stash = hashtable + capacity;
@@ -125,21 +134,38 @@ namespace Cuckoo {
 
         cudaEventRecord(start);
 
+        unsigned* d_stash_count = NULL;
+        CUDA_SAFE_CALL(cudaMalloc((void**)&d_stash_count, sizeof(unsigned)));
+        CUDA_SAFE_CALL(cudaMemset(d_stash_count, 0, sizeof(uint)));
+
+        //printf("POST MALLOC \n");
         // Insert all the keys into the hash table
         int gridsize = ((uint) num_kvs + threadblocksize - 1) / threadblocksize;
         gpu_hashtable_insert <<<gridsize, threadblocksize>>>(pHashTable, capacity, max_iteration_attempts,
-                                                             device_kvs, (uint) num_kvs, stash_count);
+                                                             device_kvs, (uint) num_kvs, d_stash_count);
 
+
+        //std::chrono::seconds dura(5);
+        //std::this_thread::sleep_for(dura);
+       // printf("POST MASS INSERTION \n");
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
 
+        //printf("ITS AN EVENT PROBLEM");
         float milliseconds = 0;
         cudaEventElapsedTime(&milliseconds, start, stop);
         float seconds = milliseconds / 1000.0f;
-        printf("    GPU inserted %d items in %f ms (%f million keys/second), with stash_count %d\n",
-               num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f, *stash_count);
 
+        printf("    GPU inserted %d items in %f ms (%f million keys/second), with stash_count \n",
+               num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f);
+
+        // Copy out the stash size.
+        uint stashcount;
+        CUDA_SAFE_CALL(cudaMemcpy(&stashcount, d_stash_count, sizeof(unsigned), cudaMemcpyDeviceToHost));
+        if (stashcount != 0) {
+            printf("stash count is %u\n", stashcount);
+        }
         cudaFree(device_kvs);
     }
 

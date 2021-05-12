@@ -39,7 +39,7 @@ struct KeyValue
 const uint32_t kHashTableCapacity = 128 * 1024 * 1024;
 //const uint32_t kHashTableCapacity = 32 * 512 * 1024;
 
-const uint32_t kNumKeyValues = (kHashTableCapacity / 10)* 9;
+const uint32_t kNumKeyValues = (kHashTableCapacity / 10)* 8;
 
 const uint32_t kEmpty = 0xffffffff;
 
@@ -52,7 +52,8 @@ public:
     virtual void lookup_hashtable(KeyValue* kvs, uint32_t num_kvs) = 0;
     virtual void delete_hashtable(const KeyValue* kvs, uint32_t num_kvs) = 0;
     virtual std::vector<KeyValue> iterate_hashtable() = 0;
-    virtual const std::string name() {
+    virtual void destroy_hashtable() = 0;
+    virtual const char * name() {
         return "default ";
     }
 
