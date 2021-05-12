@@ -76,7 +76,7 @@ namespace Cuckoo {
     // Insert the key/values in kvs into the hashtable
     __global__ void gpu_hashtable_insert(KeyValue *hashtable, uint capacity, uint max_iteration_attempts,
                                          const KeyValue *kvs, unsigned int numkvs,
-                                         uint *stash_count) {
+                                         uint *stash_count, uint *fail_count) {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs) {
             KeyValue entry = kvs[threadid];
@@ -103,11 +103,11 @@ namespace Cuckoo {
             if (key != kEmpty) {
                 //printf("failed insert will stash now after max_iter = %u \n", max_iteration_attempts);
                 // Shove it into the stash.
-                unsigned slot = stash_hash_function(key);
+                uint slot = stash_hash_function(key);
                 KeyValue *stash = hashtable + capacity;
                 KeyValue replaced_entry = atomicCAS((stash + slot), kvEmpty, entry);
                 if (replaced_entry != kvEmpty) {
-                    // return false;
+                    atomicAdd(fail_count, 1);
                 } else {
                     atomicAdd(stash_count, 1);
                 }
@@ -116,7 +116,7 @@ namespace Cuckoo {
     }
 
     void insert_hashtable(KeyValue *pHashTable, uint capacity, uint max_iteration_attempts, const KeyValue *kvs,
-                          uint num_kvs, uint *stash_count) {
+                          uint num_kvs, uint *d_stash_count) {
         // Copy the keyvalues to the GPU
         KeyValue *device_kvs;
         cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs);
@@ -134,38 +134,44 @@ namespace Cuckoo {
 
         cudaEventRecord(start);
 
-        unsigned* d_stash_count = NULL;
-        CUDA_SAFE_CALL(cudaMalloc((void**)&d_stash_count, sizeof(unsigned)));
-        CUDA_SAFE_CALL(cudaMemset(d_stash_count, 0, sizeof(uint)));
+//        unsigned* d_stash_count = NULL;
+//        CUDA_SAFE_CALL(cudaMalloc((void**)&d_stash_count, sizeof(uint)));
+//        CUDA_SAFE_CALL(cudaMemset(d_stash_count, 0, sizeof(uint)));
+        unsigned* d_fail_count = NULL;
+        CUDA_SAFE_CALL(cudaMalloc((void**)&d_fail_count, sizeof(uint)));
+        CUDA_SAFE_CALL(cudaMemset(d_fail_count, 0, sizeof(uint)));
 
-        //printf("POST MALLOC \n");
         // Insert all the keys into the hash table
         int gridsize = ((uint) num_kvs + threadblocksize - 1) / threadblocksize;
         gpu_hashtable_insert <<<gridsize, threadblocksize>>>(pHashTable, capacity, max_iteration_attempts,
-                                                             device_kvs, (uint) num_kvs, d_stash_count);
+                                                             device_kvs, (uint) num_kvs,
+                                                             d_stash_count, d_fail_count);
 
-
-        //std::chrono::seconds dura(5);
-        //std::this_thread::sleep_for(dura);
-       // printf("POST MASS INSERTION \n");
         cudaEventRecord(stop);
 
         cudaEventSynchronize(stop);
 
-        //printf("ITS AN EVENT PROBLEM");
         float milliseconds = 0;
         cudaEventElapsedTime(&milliseconds, start, stop);
         float seconds = milliseconds / 1000.0f;
 
-        printf("    GPU inserted %d items in %f ms (%f million keys/second), with stash_count \n",
+        printf("    GPU inserted %d items in %f ms (%f million keys/second) \n",
                num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f);
 
         // Copy out the stash size.
-        uint stashcount;
-        CUDA_SAFE_CALL(cudaMemcpy(&stashcount, d_stash_count, sizeof(unsigned), cudaMemcpyDeviceToHost));
-        if (stashcount != 0) {
-            printf("stash count is %u\n", stashcount);
+        uint stash_count;
+        CUDA_SAFE_CALL(cudaMemcpy(&stash_count, d_stash_count, sizeof(unsigned), cudaMemcpyDeviceToHost));
+        if (stash_count != 0) {
+            printf("        stash count is %u\n", stash_count);
         }
+        // Copy out the stash size.
+        uint fail_count;
+        CUDA_SAFE_CALL(cudaMemcpy(&fail_count, d_fail_count, sizeof(unsigned), cudaMemcpyDeviceToHost));
+        if (fail_count != 0) {
+            printf("        fail count is %u\n", fail_count);
+        }
+        cudaFree(d_fail_count);
+
         cudaFree(device_kvs);
     }
 
@@ -186,9 +192,11 @@ namespace Cuckoo {
                 return;
             }
             if (*stash_count) {
-                KeyValue stash = hashtable[hash(1, key, capacity)];
-                if (get_key(stash) == key) {
-                    kvs[threadid] = stash;
+                uint slot = stash_hash_function(key);
+                KeyValue *stash = hashtable + capacity;
+                KeyValue entry = stash[slot];
+                if (get_key(entry) == key) {
+                    kvs[threadid] = entry;
                     return;
                 }
             }
@@ -252,9 +260,11 @@ namespace Cuckoo {
                 return;
             }
             if (*stash_count) {
-                KeyValue stash = hashtable[hash(1, key, capacity)];
-                if (get_key(stash) == key) {
-                    hashtable[threadid] = kvEmpty;
+                uint slot = stash_hash_function(key);
+                KeyValue *stash = hashtable + capacity;
+                KeyValue entry = stash[slot];
+                if (get_key(entry) == key) {
+                    stash[slot] = kvEmpty;
                     return;
                 }
             }
