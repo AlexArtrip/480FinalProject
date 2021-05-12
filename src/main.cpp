@@ -88,20 +88,9 @@ void test_unordered_map(std::vector<KeyValue>& insert_kvs, std::vector<KeyValue>
 
 void test_correctness(std::vector<KeyValue>&, std::vector<KeyValue>&, std::vector<KeyValue>&);
 
-void run_test(HashTableType ht, std::vector<KeyValue>& insert_kvs,
-              std::vector<KeyValue>& delete_kvs, std::vector<KeyValue>& lookup_kvs) {
-    HashTable* hashTable;
-    switch (ht) {
-        case LINEAR_PROBING:
-            hashTable = &LinearProbing::HashTableLP();
-            break;
-        case CUCKOO:
-            hashTable = &Cuckoo::HashTableC();
-            break;
-        default:
-            break;
-    }
 
+void run_test(HashTable& hashTable, std::vector<KeyValue>& insert_kvs,
+              std::vector<KeyValue>& delete_kvs, std::vector<KeyValue>& lookup_kvs) {
     // Begin test
     Time timer = start_timer();
 
@@ -111,7 +100,7 @@ void run_test(HashTableType ht, std::vector<KeyValue>& insert_kvs,
     uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
     for (uint32_t i = 0; i < num_insert_batches; i++)
     {
-        hashTable->insert_hashtable(insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
+        hashTable.insert_hashtable(insert_kvs.data() + i * num_inserts_per_batch, num_inserts_per_batch);
     }
 
     /*
@@ -128,17 +117,17 @@ void run_test(HashTableType ht, std::vector<KeyValue>& insert_kvs,
     uint32_t num_lookups_per_batch = (uint32_t)lookup_kvs.size() / num_lookup_batches;
     for (uint32_t i = 0; i < num_lookup_batches; i++)
     {
-        hashTable->lookup_hashtable(lookup_kvs.data() + i * num_lookups_per_batch, num_lookups_per_batch);
+        hashTable.lookup_hashtable(lookup_kvs.data() + i * num_lookups_per_batch, num_lookups_per_batch);
     }
 
     // Get all the key-values from the hash table
-    std::vector<KeyValue> kvs = hashTable->iterate_hashtable();
+    std::vector<KeyValue> kvs = hashTable.iterate_hashtable();
 
     // Summarize results
     double milliseconds = get_elapsed_time(timer);
     double seconds = milliseconds / 1000.0f;
     printf("%s Total time (including memory copies, readback, etc): %f ms (%f million keys/second)\n",
-           hashTable->name(),
+           hashTable.name(),
            milliseconds,
            kNumKeyValues / seconds / 1000000.0f);
 
@@ -168,8 +157,10 @@ int main()
 
         printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
                (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
-        run_test(CUCKOO, insert_kvs, delete_kvs, lookup_kvs);
-        run_test(LINEAR_PROBING, insert_kvs, delete_kvs, lookup_kvs);
+        LinearProbing::HashTableLP lp = LinearProbing::HashTableLP();
+        Cuckoo::HashTableC cuc = Cuckoo::HashTableC();
+        run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
+        run_test(lp, insert_kvs, delete_kvs, lookup_kvs);
     }
 
     return 0;
