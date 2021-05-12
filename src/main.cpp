@@ -14,6 +14,7 @@
 #include <thread>
 #include <cstring>
 #include "cuckoo_1h1p.h"
+#include "cuckoo_2h1p.h"
 
 //using namespace LinearProbing;
 // Create random keys/values in the range [0, kEmpty)
@@ -101,7 +102,7 @@ void run_test(HashTable& hashTable, std::vector<KeyValue>& insert_kvs,
     Time timer = start_timer();
 
     // Insert items into the hash table
-    const uint32_t num_insert_batches = 1;
+    const uint32_t num_insert_batches = 16;
     //const uint32_t num_insert_batches = 1;
     uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
     for (uint32_t i = 0; i < num_insert_batches; i++)
@@ -157,6 +158,7 @@ int main()
     Logger lp_logger(LINEAR_PROBING, false);
     Logger c_logger(CUCKOO, false);
     Logger cmod_logger(CUCKOO_1H1P, false);
+    Logger cmod2h1p_logger(CUCKOO_2H1P, false);
 
     for (uint32_t i = 0; i < 5; i++) {
         printf("Initializing keyvalue pairs with random numbers...\n");
@@ -167,6 +169,13 @@ int main()
 
         printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
                (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
+
+
+        Cuckoo2h1p::HashTableC2h1p cuc2h1p = Cuckoo2h1p::HashTableC2h1p();
+        cuc2h1p.setLogger(&cmod2h1p_logger);
+        run_test(cuc2h1p, insert_kvs, delete_kvs, lookup_kvs);
+        cuc2h1p.destroy_hashtable();
+        cmod2h1p_logger.flush();
 
         LinearProbing::HashTableLP lp = LinearProbing::HashTableLP();
         lp.setLogger(&lp_logger);
@@ -186,7 +195,7 @@ int main()
         run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
         cuc.destroy_hashtable();
         c_logger.flush();
-    }
+    }   
 
     return 0;
 }

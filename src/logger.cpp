@@ -21,12 +21,13 @@ Logger::Logger(HashTableType hashTableType, bool deleteFlag) {
     std::cout << "yeet\n";
 
     std::tm * local_time = std::localtime(&current);
+    
+    filename << ht_filenames[hashTableType] << "_";
     if (deleteFlag) {
         filename << "d_";
     }
-    filename << ht_filenames[hashTableType];
     filename << 1 + local_time->tm_mon << "-" << local_time->tm_mday << "-";
-    filename << 1 + local_time->tm_hour << "_" << 1 + local_time->tm_min << "_";
+    filename << 1 + local_time->tm_hour << "-" << 1 + local_time->tm_min << "-";
     filename << 1 + local_time->tm_sec << ".txt";
     std::cout << filename.str() << std::endl;
 
@@ -45,6 +46,7 @@ Logger::Logger(HashTableType hashTableType, bool deleteFlag) {
             break;
         case CUCKOO:
         case CUCKOO_1H1P :
+        case CUCKOO_2H1P :
             *file << "InsertIter\tStashCount\tFailCount\t";
             break;
         default:

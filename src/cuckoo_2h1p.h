@@ -32,24 +32,24 @@ namespace Cuckoo2h1p {
 
     void destroy_hashtable(KeyValue* hashtable);
 
-    class HashTableC : public HashTable {
+    class HashTableC2h1p : public HashTable {
     protected:
         uint max_iterations = 10;
         uint* d_stash_count = NULL;
     public:
-        HashTableC() {
+        HashTableC2h1p() {
             hashTableCapacity = kHashTableCapacity;
             numKeyValues = hashTableCapacity / 2;
             max_iterations = Cuckoo2h1p::ComputeMaxIterations(kNumKeyValues, kHashTableCapacity, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
-        HashTableC(uint size, uint expected_kvs) {
+        HashTableC2h1p(uint size, uint expected_kvs) {
             hashTableCapacity = size;
             numKeyValues = size / 2;
             max_iterations = Cuckoo2h1p::ComputeMaxIterations(expected_kvs, size, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
-        ~HashTableC() {
+        ~HashTableC2h1p() {
             if (table) {
                 Cuckoo2h1p::destroy_hashtable(table);
             }
@@ -71,7 +71,7 @@ namespace Cuckoo2h1p {
             Cuckoo2h1p::destroy_hashtable(table);
         }     
         const char* name() {
-			return "Standard Cuckoo ";
+			return "Modified Cuckoo 2 hashes and 2 extra slots ";
         }
     };
 }

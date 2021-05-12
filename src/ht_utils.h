@@ -43,10 +43,11 @@ enum HashTableType {
     LINEAR_PROBING = 0,
     CUCKOO = 1,
     CUCKOO_1H1P = 2,
-    CUCKOO_1H3P = 3
+    CUCKOO_1H3P = 3,
+    CUCKOO_2H1P = 4
 };
 
-const std::string ht_filenames[] = { "LP", "C", "C1h1p", "C1h3p" };
+const std::string ht_filenames[] = { "LP", "C", "C1h1p", "C1h3p", "C2h1p"};
 
 
 #endif //GPUHASHTABLES_HASH_TABLE_H
