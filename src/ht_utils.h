@@ -2,8 +2,8 @@
 // Created by Max Yu on 5/10/21.
 //
 
-#ifndef GPUHASHTABLES_HASH_TABLE_H
-#define GPUHASHTABLES_HASH_TABLE_H
+#ifndef GPUHASHTABLES_HT_UTILS_H
+#define GPUHASHTABLES_HT_UTILS_H
 
 #include <stdint.h>
 #include <string>

@@ -39,38 +39,38 @@ namespace Cuckoo1h1p {
         HTC1h1p() {
             hashTableCapacity = kHashTableCapacity;
             numKeyValues = hashTableCapacity / 2;
-            max_iterations = Cuckoo::ComputeMaxIterations(kNumKeyValues, kHashTableCapacity, 2);
+            max_iterations = Cuckoo1h1p::ComputeMaxIterations(kNumKeyValues, kHashTableCapacity, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
         HTC1h1p(uint size, uint expected_kvs) {
             hashTableCapacity = size;
             numKeyValues = size / 2;
-            max_iterations = Cuckoo::ComputeMaxIterations(expected_kvs, size, 2);
+            max_iterations = Cuckoo1h1p::ComputeMaxIterations(expected_kvs, size, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
         ~HTC1h1p() {
             if (table) {
-                Cuckoo::destroy_hashtable(table);
+                Cuckoo1h1p::destroy_hashtable(table);
             }
             // cudaFree(d_stash_count);
         }
         virtual void insert_hashtable(const KeyValue* kvs, uint num_kvs) {
-            Cuckoo::insert_hashtable(table, logger, hashTableCapacity, max_iterations, kvs, num_kvs, d_stash_count);
+            Cuckoo1h1p::insert_hashtable(table, logger, hashTableCapacity, max_iterations, kvs, num_kvs, d_stash_count);
         }
         virtual void lookup_hashtable(KeyValue* kvs, uint num_kvs) {
-            Cuckoo::lookup_hashtable(table, logger, hashTableCapacity, kvs, num_kvs, d_stash_count);
+            Cuckoo1h1p::lookup_hashtable(table, logger, hashTableCapacity, kvs, num_kvs, d_stash_count);
         }
         virtual void delete_hashtable(const KeyValue* kvs, uint num_kvs) {
-            Cuckoo::delete_hashtable(table, logger, hashTableCapacity, kvs, num_kvs, d_stash_count);
+            Cuckoo1h1p::delete_hashtable(table, logger, hashTableCapacity, kvs, num_kvs, d_stash_count);
         }
         virtual std::vector<KeyValue> iterate_hashtable() {
-            return Cuckoo::iterate_hashtable(table, hashTableCapacity);
+            return Cuckoo1h1p::iterate_hashtable(table, hashTableCapacity);
         }
         virtual void destroy_hashtable() {
-            Cuckoo::destroy_hashtable(table);
+            Cuckoo1h1p::destroy_hashtable(table);
         }     
         const char* name() {
-			return "Standard Cuckoo ";
+			return "Modifided Cuckoo with 1 hash and 1 extra slot ";
         }
     };
 }

@@ -4,9 +4,12 @@
 
 #include "logger.h"
 #include <iostream>
+#include <fstream>
 #include <chrono>
 #include <ctime>
 #include <sstream>
+#include <assert.h>
+#include <thread>
 
 Logger::Logger(HashTableType hashTableType, bool deleteFlag) {
     type = hashTableType;
@@ -23,13 +26,17 @@ Logger::Logger(HashTableType hashTableType, bool deleteFlag) {
     }
     filename << ht_filenames[hashTableType];
     filename << 1 + local_time->tm_mon << "-" << local_time->tm_mday << "-";
-    filename << 1 + local_time->tm_hour << ":" << 1 + local_time->tm_min << ":";
+    filename << 1 + local_time->tm_hour << "_" << 1 + local_time->tm_min << "_";
     filename << 1 + local_time->tm_sec << ".txt";
     std::cout << filename.str() << std::endl;
 
     file = new std::ofstream(filename.str());
     if (!file->is_open())
     {
+        printf("CANNOT OPEN LOGGER FILE");
+
+        std::chrono::seconds dura(5);
+        std::this_thread::sleep_for(dura);
         exit(-1);
     }
     *file << "Capacity\tLoadFactor\tInsertNumKVs\tInsertTime\t";

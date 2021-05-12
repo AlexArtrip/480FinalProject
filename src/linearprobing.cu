@@ -99,7 +99,7 @@ namespace LinearProbing {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU inserted %d items in %f ms (%f million keys/second)\n",
             num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
-        logger.logInsert(capacity, num_kvs * 1.0 / capacity, num_kvs, milliseconds);
+        logger->logInsert(capacity, num_kvs * 1.0 / capacity, num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }
@@ -162,7 +162,7 @@ namespace LinearProbing {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU lookup %d items in %f ms (%f million keys/second)\n",
             num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
-        logger.logLookup(num_kvs, milliseconds);
+        logger->logLookup(num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }
@@ -225,7 +225,7 @@ namespace LinearProbing {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU delete %d items in %f ms (%f million keys/second)\n",
             num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
-        logger.logDelete(num_kvs, milliseconds);
+        logger->logDelete(num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }

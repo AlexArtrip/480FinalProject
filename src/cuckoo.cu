@@ -197,7 +197,7 @@ namespace Cuckoo {
         if (fail_count != 0) {
             printf("        fail count is %u\n", fail_count);
         }
-        logger.logInsert(capacity, num_kvs * 1.0 / capacity, num_kvs, milliseconds,
+        logger->logInsert(capacity, num_kvs * 1.0 / capacity, num_kvs, milliseconds,
                          max_iteration_attempts, stash_count, fail_count);
 
         cudaFree(d_fail_count);
@@ -269,7 +269,7 @@ namespace Cuckoo {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU lookup %d items in %f ms (%f million keys/second)\n",
                num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f);
-        logger.logLookup(num_kvs, milliseconds);
+        logger->logLookup(num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }
@@ -338,7 +338,7 @@ namespace Cuckoo {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU delete %d items in %f ms (%f million keys/second)\n",
                num_kvs, milliseconds, num_kvs / (double) seconds / 1000000.0f);
-        logger.logDelete(num_kvs, milliseconds);
+        logger->logDelete(num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }

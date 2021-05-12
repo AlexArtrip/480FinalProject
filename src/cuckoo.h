@@ -4,6 +4,7 @@
 #include "logger.h"
 #include "hash_table.h"
 
+
 namespace Cuckoo {
     const unsigned kStashSize = 101;           //!< How many slots the stash hash table contains.
 //    unsigned stash_hash_function(const uint x, const uint y,
