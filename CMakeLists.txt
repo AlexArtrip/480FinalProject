@@ -16,7 +16,9 @@ set(SOURCE_FILES src/main.cpp
     src/linearprobing.h src/linearprobing.cu
         #src/definitions.h src/hash_functions.cu src/hash_functions.h src/hash_table.cuh
         src/cuckoo.cu src/cuckoo.h
-        src/ht_utils.h src/cuda_util.h src/logger.cpp src/logger.h src/hash_table.h)
+        src/ht_utils.h src/cuda_util.h src/logger.cpp src/logger.h src/hash_table.h
+        src/cuckoo_1h1p.cu src/cuckoo_1h1p.h
+        src/cuckoo_1h3p.cu src/cuckoo_1h3p.h)
 #		src/hash_table.cuh src/hash_functions.h
 #	src/hash_functions.cu src/mt19937ar.cpp src/mt19937ar.h src/hash_table.cu
 #	src/hash_table.cpp src/hash_table.h src/definitions.h)

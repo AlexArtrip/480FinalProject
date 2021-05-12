@@ -7,9 +7,6 @@
 #include "ht_utils.h"
 #include <fstream>
 
-
-const std::string ht_filenames[] = { "LP", "C" };
-
 //! THIS CLASS ASSUMES PROPER USAGE
 class Logger {
 protected:

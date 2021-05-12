@@ -41,8 +41,12 @@ const KeyValue kvEmpty = 0xffffffffffffffff;
 
 enum HashTableType {
     LINEAR_PROBING = 0,
-    CUCKOO = 1
+    CUCKOO = 1,
+    CUCKOO_1H1P = 2,
+    CUCKOO_1H3P = 2
 };
+
+const std::string ht_filenames[] = { "LP", "C", "C1h1p", "C1h3p" };
 
 
 #endif //GPUHASHTABLES_HASH_TABLE_H
