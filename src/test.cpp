@@ -6,7 +6,7 @@
 #include "vector"
 #include "algorithm"
 #include "random"
-#include "hash_table.h"
+#include "ht_utils.h"
 //using namespace LinearProbing;
 void test_correctness(std::vector<KeyValue> insert_kvs, std::vector<KeyValue> delete_kvs, std::vector<KeyValue> kvs)
 {

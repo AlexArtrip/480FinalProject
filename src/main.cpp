@@ -6,9 +6,10 @@
 #include "unordered_set"
 #include "vector"
 #include "chrono"
-#include "hash_table.h"
+#include "ht_utils.h"
 #include "linearprobing.h"
 #include "cuckoo.h"
+#include "logger.h"
 #include <chrono>
 #include <thread>
 #include <cstring>
@@ -152,6 +153,9 @@ int main()
 
     printf("Random number generator seed = %u\n", seed);
 
+    Logger lp_logger(LINEAR_PROBING, true);
+    Logger c_logger(CUCKOO, true);
+
     for (uint32_t i = 0; i < 5; i++) {
         printf("Initializing keyvalue pairs with random numbers...\n");
 
@@ -161,13 +165,16 @@ int main()
 
         printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
                (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
+
         LinearProbing::HashTableLP lp = LinearProbing::HashTableLP();
+        lp.setLogger(&lp_logger);
         run_test(lp, insert_kvs, delete_kvs, lookup_kvs); 
-        lp.destroy_hashtable(); 
+        lp.destroy_hashtable();
+
         Cuckoo::HashTableC cuc = Cuckoo::HashTableC();
+        cuc.setLogger(&c_logger);
         run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
         cuc.destroy_hashtable();
-
     }
 
     return 0;

@@ -67,7 +67,7 @@ namespace LinearProbing {
         }
     }
 
-    void insert_hashtable(KeyValue* pHashTable, uint capacity, const KeyValue* kvs, uint num_kvs)
+    void insert_hashtable(KeyValue* pHashTable, Logger* logger, uint capacity, const KeyValue* kvs, uint num_kvs)
     {
         // Copy the keyvalues to the GPU
         KeyValue* device_kvs;
@@ -99,6 +99,7 @@ namespace LinearProbing {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU inserted %d items in %f ms (%f million keys/second)\n",
             num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
+        logger.logInsert(capacity, num_kvs * 1.0 / capacity, num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }
@@ -129,7 +130,7 @@ namespace LinearProbing {
         }
     }
 
-    void lookup_hashtable(KeyValue* pHashTable, uint capacity, KeyValue* kvs, uint num_kvs)
+    void lookup_hashtable(KeyValue* pHashTable, Logger* logger, uint capacity, KeyValue* kvs, uint num_kvs)
     {
         // Copy the keyvalues to the GPU
         KeyValue* device_kvs;
@@ -161,6 +162,7 @@ namespace LinearProbing {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU lookup %d items in %f ms (%f million keys/second)\n",
             num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
+        logger.logLookup(num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }
@@ -191,7 +193,7 @@ namespace LinearProbing {
         }
     }
 
-    void delete_hashtable(KeyValue* pHashTable, uint capacity, const KeyValue* kvs, uint num_kvs)
+    void delete_hashtable(KeyValue* pHashTable, Logger* logger, uint capacity, const KeyValue* kvs, uint num_kvs)
     {
         // Copy the keyvalues to the GPU
         KeyValue* device_kvs;
@@ -223,6 +225,7 @@ namespace LinearProbing {
         float seconds = milliseconds / 1000.0f;
         printf("    GPU delete %d items in %f ms (%f million keys/second)\n",
             num_kvs, milliseconds, num_kvs / (double)seconds / 1000000.0f);
+        logger.logDelete(num_kvs, milliseconds);
 
         cudaFree(device_kvs);
     }

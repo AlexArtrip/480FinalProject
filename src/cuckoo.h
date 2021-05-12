@@ -1,5 +1,7 @@
 #pragma once
 #include "vector"
+#include "ht_utils.h"
+#include "logger.h"
 #include "hash_table.h"
 
 namespace Cuckoo {
@@ -15,12 +17,15 @@ namespace Cuckoo {
 
     KeyValue* create_hashtable(uint size, uint** stash_count);
 
-    void insert_hashtable(KeyValue* hashtable, uint size, uint max_iteration_attempts, const KeyValue* kvs,
+    void insert_hashtable(KeyValue* hashtable, Logger* logger,
+                          uint size, uint max_iteration_attempts, const KeyValue* kvs,
                           uint num_kvs, uint* stash_count);
 
-    void lookup_hashtable(KeyValue* hashtable, uint size, KeyValue* kvs, uint num_kvs, uint* stash_count);
+    void lookup_hashtable(KeyValue* hashtable, Logger* logger,
+                          uint size, KeyValue* kvs, uint num_kvs, uint* stash_count);
 
-    void delete_hashtable(KeyValue* hashtable, uint size, const KeyValue* kvs, uint num_kvs, uint* stash_count);
+    void delete_hashtable(KeyValue* hashtable, Logger* logger,
+                          uint size, const KeyValue* kvs, uint num_kvs, uint* stash_count);
 
     std::vector<KeyValue> iterate_hashtable(KeyValue* hashtable, uint size);
 
@@ -50,13 +55,13 @@ namespace Cuckoo {
             // cudaFree(d_stash_count);
         }
         virtual void insert_hashtable(const KeyValue* kvs, uint num_kvs) {
-            Cuckoo::insert_hashtable(table, hashTableCapacity, max_iterations, kvs, num_kvs, d_stash_count);
+            Cuckoo::insert_hashtable(table, logger, hashTableCapacity, max_iterations, kvs, num_kvs, d_stash_count);
         }
         virtual void lookup_hashtable(KeyValue* kvs, uint num_kvs) {
-            Cuckoo::lookup_hashtable(table, hashTableCapacity, kvs, num_kvs, d_stash_count);
+            Cuckoo::lookup_hashtable(table, logger, hashTableCapacity, kvs, num_kvs, d_stash_count);
         }
         virtual void delete_hashtable(const KeyValue* kvs, uint num_kvs) {
-            Cuckoo::delete_hashtable(table, hashTableCapacity, kvs, num_kvs, d_stash_count);
+            Cuckoo::delete_hashtable(table, logger, hashTableCapacity, kvs, num_kvs, d_stash_count);
         }
         virtual std::vector<KeyValue> iterate_hashtable() {
             return Cuckoo::iterate_hashtable(table, hashTableCapacity);
