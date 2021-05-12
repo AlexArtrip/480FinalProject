@@ -12,14 +12,6 @@ namespace Cuckoo2h1p {
         const unsigned num_functions) {
         float lg_input_size = (float)(log((double)n) / log(2.0));
 
-        // #define CONSTANT_ITERATIONS
-        //#ifdef CONSTANT_ITERATIONS
-        //        // Set the maximum number of iterations to 7lg(N).
-        //    const unsigned MAX_ITERATION_CONSTANT = 7;
-        //    unsigned max_iterations = MAX_ITERATION_CONSTANT * lg_input_size;
-        //#else
-                // Use an empirical formula for determining what the maximum number of
-                // iterations should be.  Works OK in most situations.
         float load_factor = float(n) / table_size;
         float ln_load_factor = (float)(log(load_factor) / log(2.71828183));
 
@@ -71,12 +63,20 @@ namespace Cuckoo2h1p {
     __device__ unsigned determine_next_location(const unsigned table_size,
                                                 const unsigned key,
                                                 const unsigned previous_location) {
-        uint next_location = hash(0, key, table_size);
-        if (next_location == previous_location) {
-            //return next_location + 1;
-            return hash(1, key, table_size);
+        uint hash0 = hash(0, key, table_size);
+        if (hash0 == previous_location) {
+            return (hash0 + 1) & (table_size - 1);
+        } else {
+            if (previous_location == (hash0 + 1) & (table_size - 1)) {
+                return hash(1, key, table_size);
+            } else {
+                uint hash1 = hash(1, key, table_size);
+                if (previous_location == hash1) {
+                    return (hash1 + 1) & (table_size - 1);
+                }
+                return hash0;
+            }
         }
-        return next_location;
     }
 
     // Create a hash table. For linear probing, this is just an array of KeyValues
@@ -107,95 +107,23 @@ namespace Cuckoo2h1p {
             KeyValue entry = kvs[threadid];
             unsigned key = get_key(entry);
             unsigned prev_key = key;
-            
+            // The key is always inserted into its first slot at the start.
+            uint location = hash(0, key, capacity);
             // Keep inserting until an empty slot is found or the eviction chain grows too large.
             for (unsigned its = 1; its <= max_iteration_attempts; its++) {
                 // Insert the new entry.
                 prev_key = key;
-
-                uint hash_val0 = hash(0, key, capacity);
-                KeyValue was_stored;
-                KeyValue removed;
-
-                // Try to place this key in any of its 4 loactions
-
-                // hf1
-                if (was_stored = atomicCAS(&hashtable[hash_val0], kvEmpty, entry) == kvEmpty) {
-                    return;
-                }
-                // If it was occupied by a dup key take its spot
-                if (get_key(was_stored) == key) {
-                    removed = atomicExch(&hashtable[hash_val0], entry);
-                    // If the key we replaced was different insert it back in
-                    if (get_key(removed) != key) {
-                        entry = removed;
-                        key = get_key(entry);
-                        continue;
-                    }
-                    return;
-                }
-
-                // hf2
-                if (was_stored = atomicCAS(&hashtable[(hash_val0 + 1) & (capacity - 1)], kvEmpty, entry) == kvEmpty) {
-                    return;
-                }
-                // If it was occupied by a dup key take its spot
-                if (get_key(was_stored) == key) {
-                    removed = atomicExch(&hashtable[(hash_val0 + 1) & (capacity - 1)], entry);
-                    // If the key we replaced was different insert it back in
-                    if (get_key(removed) != key) {
-                        entry = removed;
-                        key = get_key(entry);
-                        continue;
-                    }
-                    return;
-                }
-
-                // hf3
-                uint hash_val1 = hash(1, key, capacity);
-                if (was_stored  = atomicCAS(&hashtable[hash_val1], kvEmpty, entry) == kvEmpty) {
-                    return;
-                }
-                // If it was occupied by a dup key take its spot
-                if (get_key(was_stored) == key) {
-                    removed = atomicExch(&hashtable[hash_val1], entry);
-                    // If the key we replaced was different insert it back in
-                    if (get_key(removed) != key) {
-                        entry = removed;
-                        key = get_key(entry);
-                        continue;
-                    }
-                    return;
-                }
-
-                // hf4
-                if (was_stored = atomicCAS(&hashtable[(hash_val1 + 1) & (capacity - 1)], kvEmpty, entry) == kvEmpty) {
-                    return;
-                }
-                // If it was occupied by a dup key take its spot
-                if (get_key(was_stored) == key) {
-                    removed = atomicExch(&hashtable[(hash_val1 + 1) & (capacity - 1)], entry);
-                    // If the key we replaced was different insert it back in
-                    if (get_key(removed) != key) {
-                        entry = removed;
-                        key = get_key(entry);
-                        continue;
-                    }
-                    return;
-                }
-
-                // We couldnt insert to any of the 4 locations so we evict whoever is in our hash0
-                entry = atomicExch(&hashtable[hash_val0], entry);
+                entry = atomicExch(&hashtable[location], entry);
                 key = get_key(entry);
                 // If no key was evicted or this key is already present, we're done.
-                if (prev_key == key) {
+                if (key == kEmpty || prev_key == key) {
                     // *iterations_used = its;
                     return;
                 }
+                // Otherwise, determine where the evicted key will go.
+                location = determine_next_location(capacity, key, location);
             }
-            //printf("failed insert with key %u whose prev_key is %u \n", key, prev_key);
             if (key != kEmpty) {
-                //printf("failed insert will stash now after max_iter = %u \n", max_iteration_attempts);
                 // Shove it into the stash.
                 uint slot = stash_hash_function(key);
                 KeyValue *stash = hashtable + capacity;
@@ -230,9 +158,6 @@ namespace Cuckoo2h1p {
 
         cudaEventRecord(start);
 
-//        unsigned* d_stash_count = NULL;
-//        CUDA_SAFE_CALL(cudaMalloc((void**)&d_stash_count, sizeof(uint)));
-//        CUDA_SAFE_CALL(cudaMemset(d_stash_count, 0, sizeof(uint)));
         unsigned* d_fail_count = NULL;
         CUDA_SAFE_CALL(cudaMalloc((void**)&d_fail_count, sizeof(uint)));
         CUDA_SAFE_CALL(cudaMemset(d_fail_count, 0, sizeof(uint)));
@@ -282,33 +207,33 @@ namespace Cuckoo2h1p {
             uint key = get_key(kvs[threadid]);
 
             uint hash_val = hash(0, key, capacity);
-            KeyValue slot = hashtable[hash_val];
+            KeyValue entry = hashtable[hash_val];
 
-            if (get_key(slot) == key) {
-                kvs[threadid] = slot;
+            if (get_key(entry) == key) {
+                kvs[threadid] = entry;
                 return;
-            } 
-            slot = hashtable[(hash_val + 1) & (capacity - 1)];
-            if (get_key(slot) == key) {
-                kvs[threadid] = slot;
+            }
+            entry = hashtable[(hash_val + 1) & (capacity - 1)];
+            if (get_key(entry) == key) {
+                kvs[threadid] = entry;
                 return;
             }
             hash_val = hash(1, key, capacity);
-            slot = hashtable[hash_val];
-            if (get_key(slot) == key) {
-                kvs[threadid] = slot;
+            entry = hashtable[hash_val];
+            if (get_key(entry) == key) {
+                kvs[threadid] = entry;
                 return;
             }
-            slot = hashtable[(hash_val + 1) & (capacity - 1)];
-            if (get_key(slot) == key) {
-                kvs[threadid] = slot;
+            entry = hashtable[(hash_val + 1) & (capacity - 1)];
+            if (get_key(entry) == key) {
+                kvs[threadid] = entry;
                 return;
             }
             // It wasnt in any of its 4 expected slots so we check the stash
             if (*stash_count) {
                 uint slot = stash_hash_function(key);
                 KeyValue *stash = hashtable + capacity;
-                KeyValue entry = stash[slot];
+                entry = stash[slot];
                 if (get_key(entry) == key) {
                     kvs[threadid] = entry;
                     return;
@@ -365,21 +290,37 @@ namespace Cuckoo2h1p {
         unsigned int threadid = blockIdx.x * blockDim.x + threadIdx.x;
         if (threadid < numkvs) {
             uint key = get_key(kvs[threadid]);
-            // TODO fix!!!
-            KeyValue slot0 = hashtable[hash(0, key, capacity)];
-            if (get_key(slot0) == key) {
-                hashtable[threadid] = kvEmpty;
+
+            uint hash_val = hash(0, key, capacity);
+            KeyValue entry = hashtable[hash_val];
+
+            if (get_key(entry) == key) {
+                hashtable[hash_val] = kvEmpty;
                 return;
             }
-            KeyValue slot1 = hashtable[hash(1, key, capacity)];
-            if (get_key(slot1) == key) {
-                hashtable[threadid] = kvEmpty;
+            hash_val = (hash_val + 1) & (capacity - 1);
+            entry = hashtable[hash_val];
+            if (get_key(entry) == key) {
+                hashtable[hash_val] = kvEmpty;
                 return;
             }
+            hash_val = hash(1, key, capacity);
+            entry = hashtable[hash_val];
+            if (get_key(entry) == key) {
+                hashtable[hash_val] = kvEmpty;
+                return;
+            }
+            hash_val = (hash_val + 1) & (capacity - 1);
+            entry = hashtable[hash_val];
+            if (get_key(entry) == key) {
+                hashtable[hash_val] = kvEmpty;
+                return;
+            }
+            // It wasnt in any of its 4 expected slots so we check the stash
             if (*stash_count) {
                 uint slot = stash_hash_function(key);
                 KeyValue *stash = hashtable + capacity;
-                KeyValue entry = stash[slot];
+                entry = stash[slot];
                 if (get_key(entry) == key) {
                     stash[slot] = kvEmpty;
                     return;

@@ -277,12 +277,13 @@ namespace Cuckoo1h1p {
             uint hash_val = hash(key, capacity);
             KeyValue slot0 = hashtable[hash_val];
             if (get_key(slot0) == key) {
-                hashtable[threadid] = kvEmpty;
+                hashtable[hash_val] = kvEmpty;
                 return;
             }
-            KeyValue slot1 = hashtable[(hash_val + 1) & (capacity - 1)];
+            hash_val = (hash_val + 1) & (capacity - 1);
+            KeyValue slot1 = hashtable[hash_val];
             if (get_key(slot1) == key) {
-                hashtable[threadid] = kvEmpty;
+                hashtable[hash_val] = kvEmpty;
                 return;
             }
             if (*stash_count) {
