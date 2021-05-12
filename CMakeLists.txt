@@ -19,6 +19,7 @@ set(SOURCE_FILES src/main.cpp
         src/ht_utils.h src/cuda_util.h src/logger.cpp src/logger.h src/hash_table.h
         src/cuckoo_1h1p.cu src/cuckoo_1h1p.h
         #src/cuckoo_1h3p.cu src/cuckoo_1h3p.h)
+        src/cuckoo_2h1p.cu src/cuckoo_2h1p.h
         )
 #		src/hash_table.cuh src/hash_functions.h
 #	src/hash_functions.cu src/mt19937ar.cpp src/mt19937ar.h src/hash_table.cu

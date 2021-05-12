@@ -44,6 +44,7 @@ Logger::Logger(HashTableType hashTableType, bool deleteFlag) {
         case LINEAR_PROBING:
             break;
         case CUCKOO:
+        case CUCKOO_1H1P :
             *file << "InsertIter\tStashCount\tFailCount\t";
             break;
         default:
@@ -71,11 +72,11 @@ void Logger::logLookup(uint num_kvs, float milliseconds) {
     if (delFlag) {
         *file << "\t";
     } else {
-        *file << std::endl;
+        *file << "\n";
     }
 }
 
 void Logger::logDelete(uint num_kvs, float milliseconds) {
-    *file << num_kvs << "\t" << milliseconds << std::endl;
+    *file << num_kvs << "\t" << milliseconds << "\n";
 }
 

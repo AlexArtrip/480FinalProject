@@ -19,8 +19,13 @@ public:
     }
     Logger(HashTableType hashTableType, bool deleteFlag);
     ~Logger() {
-        file->close();
-        delete file;
+        if (file) {
+            file->close();
+            delete file;
+        }
+    }
+    void flush() {
+        file->flush();
     }
     void logInsert(uint capacity, float load, uint num_kvs, float milliseconds);
     void logInsert(uint capacity, float load, uint num_kvs, float milliseconds, uint iter, uint stash_count, uint fail_count);

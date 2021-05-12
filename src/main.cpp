@@ -13,6 +13,7 @@
 #include <chrono>
 #include <thread>
 #include <cstring>
+#include "cuckoo_1h1p.h"
 
 //using namespace LinearProbing;
 // Create random keys/values in the range [0, kEmpty)
@@ -153,8 +154,9 @@ int main()
 
     printf("Random number generator seed = %u\n", seed);
 
-    Logger lp_logger(LINEAR_PROBING, true);
-    Logger c_logger(CUCKOO, true);
+    Logger lp_logger(LINEAR_PROBING, false);
+    Logger c_logger(CUCKOO, false);
+    Logger cmod_logger(CUCKOO_1H1P, false);
 
     for (uint32_t i = 0; i < 5; i++) {
         printf("Initializing keyvalue pairs with random numbers...\n");
@@ -170,11 +172,20 @@ int main()
         lp.setLogger(&lp_logger);
         run_test(lp, insert_kvs, delete_kvs, lookup_kvs); 
         lp.destroy_hashtable();
+        lp_logger.flush();
+
+        Cuckoo1h1p::HTC1h1p cuck_mod = Cuckoo1h1p::HTC1h1p();
+        cuck_mod.setLogger(&cmod_logger);
+        run_test(cuck_mod, insert_kvs, delete_kvs, lookup_kvs);
+        cuck_mod.destroy_hashtable();
+        cmod_logger.flush();
+
 
         Cuckoo::HashTableC cuc = Cuckoo::HashTableC();
         cuc.setLogger(&c_logger);
         run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
         cuc.destroy_hashtable();
+        c_logger.flush();
     }
 
     return 0;
