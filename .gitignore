@@ -4,6 +4,7 @@ build/
 cmake-build-debug/
 out/
 CMakeFiles/
+plotting/venv/
 *.vcxproj
 *.filters
 GPUHashTables.sln
