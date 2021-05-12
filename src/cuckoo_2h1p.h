@@ -32,24 +32,24 @@ namespace Cuckoo2h1p {
 
     void destroy_hashtable(KeyValue* hashtable);
 
-    class HashTableC2h1p : public HashTable {
+    class HashTableC : public HashTable {
     protected:
         uint max_iterations = 10;
         uint* d_stash_count = NULL;
     public:
-        HashTableC2h1p() {
+        HashTableC() {
             hashTableCapacity = kHashTableCapacity;
             numKeyValues = hashTableCapacity / 2;
             max_iterations = Cuckoo2h1p::ComputeMaxIterations(kNumKeyValues, kHashTableCapacity, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
-        HashTableC2h1p(uint size, uint expected_kvs) {
+        HashTableC(uint size, uint expected_kvs) {
             hashTableCapacity = size;
             numKeyValues = size / 2;
             max_iterations = Cuckoo2h1p::ComputeMaxIterations(expected_kvs, size, 2);
             table = create_hashtable(hashTableCapacity, &d_stash_count);
         }
-        ~HashTableC2h1p() {
+        ~HashTableC() {
             if (table) {
                 Cuckoo2h1p::destroy_hashtable(table);
             }

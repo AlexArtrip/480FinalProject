@@ -149,9 +149,10 @@ int main()
 {
     // To recreate the same random numbers across runs of the program, set seed to a specific
     // number instead of a number from random_device
-    std::random_device rd;
-    uint32_t seed = rd();
-    std::mt19937 rnd(seed);  // mersenne_twister_engine
+//    std::random_device rd;
+//    uint32_t seed = rd();
+//    std::mt19937 rnd(seed);  // mersenne_twister_engine
+    std::mt19937 rnd(512);
 
     printf("Random number generator seed = %u\n", seed);
 
@@ -160,41 +161,52 @@ int main()
     Logger cmod_logger(CUCKOO_1H1P, false);
     Logger cmod2h1p_logger(CUCKOO_2H1P, false);
 
-    for (uint32_t i = 0; i < 5; i++) {
-        printf("Initializing keyvalue pairs with random numbers...\n");
+    // 2^12, 15, 18, 21, 24, 27
+    uint capacities[] = { 4096, 4096 * 8, 4096 * 64, 4096 * 64 * 8, 4096 * 64 * 64, 4096 * 64 * 64 * 8};
+    uint loads[] = {1, 2, 3, 4, 5, 6, 7, 8, 9}; // 0.1, 0.2, ... , 0.9
 
-        std::vector<KeyValue> insert_kvs = generate_random_keyvalues(rnd, kNumKeyValues);
-        std::vector<KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
-        std::vector<KeyValue> lookup_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
-
-        printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
-               (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
+    uint num_kvs = capacities[i] * loads[j] / 10;
 
 
-        Cuckoo2h1p::HashTableC2h1p cuc2h1p = Cuckoo2h1p::HashTableC2h1p();
-        cuc2h1p.setLogger(&cmod2h1p_logger);
-        run_test(cuc2h1p, insert_kvs, delete_kvs, lookup_kvs);
-        cuc2h1p.destroy_hashtable();
-        cmod2h1p_logger.flush();
+    for (uint i = 0; i < 6; i++) {
+        for (uint j = 0; j < 9; j++) {
+            num_kvs = capacities[i] * loads[j] / 10;
 
-        LinearProbing::HashTableLP lp = LinearProbing::HashTableLP();
-        lp.setLogger(&lp_logger);
-        run_test(lp, insert_kvs, delete_kvs, lookup_kvs); 
-        lp.destroy_hashtable();
-        lp_logger.flush();
+            printf("Initializing keyvalue pairs with random numbers...\n");
 
-        Cuckoo1h1p::HTC1h1p cuck_mod = Cuckoo1h1p::HTC1h1p();
-        cuck_mod.setLogger(&cmod_logger);
-        run_test(cuck_mod, insert_kvs, delete_kvs, lookup_kvs);
-        cuck_mod.destroy_hashtable();
-        cmod_logger.flush();
+            std::vector <KeyValue> insert_kvs = generate_random_keyvalues(rnd, num_kvs);
+            std::vector <KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, num_kvs / 2);
+            std::vector <KeyValue> lookup_kvs = shuffle_keyvalues(rnd, insert_kvs, num_kvs / 2);
+
+            printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
+                   (uint32_t) insert_kvs.size(), (uint32_t) lookup_kvs.size());
 
 
-        Cuckoo::HashTableC cuc = Cuckoo::HashTableC();
-        cuc.setLogger(&c_logger);
-        run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
-        cuc.destroy_hashtable();
-        c_logger.flush();
+            Cuckoo2h1p::HashTableC2h1p cuc2h1p = Cuckoo2h1p::HashTableC2h1p(capacities[i], num_kvs);
+            cuc2h1p.setLogger(&cmod2h1p_logger);
+            run_test(cuc2h1p, insert_kvs, delete_kvs, lookup_kvs);
+            cuc2h1p.destroy_hashtable();
+            cmod2h1p_logger.flush();
+
+            LinearProbing::HashTableLP lp = LinearProbing::HashTableLP(capacities[i], num_kvs);
+            lp.setLogger(&lp_logger);
+            run_test(lp, insert_kvs, delete_kvs, lookup_kvs);
+            lp.destroy_hashtable();
+            lp_logger.flush();
+
+            Cuckoo1h1p::HashTableC cuck_mod = Cuckoo1h1p::HashTableC(capacities[i], num_kvs);
+            cuck_mod.setLogger(&cmod_logger);
+            run_test(cuck_mod, insert_kvs, delete_kvs, lookup_kvs);
+            cuck_mod.destroy_hashtable();
+            cmod_logger.flush();
+
+
+            Cuckoo::HashTableC cuc = Cuckoo::HashTableC(capacities[i], num_kvs);
+            cuc.setLogger(&c_logger);
+            run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
+            cuc.destroy_hashtable();
+            c_logger.flush();
+        }
     }   
 
     return 0;
