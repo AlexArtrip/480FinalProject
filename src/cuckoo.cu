@@ -4,7 +4,25 @@
 #include "cuckoo.h"
 
 namespace Cuckoo {
+    //! Makes an 64-bit Entry out of a key-value pair for the hash table.
+    inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
+        return (KeyValue(key) << 32) + value;
+    }
 
+    //! Returns the key of an Entry.
+    inline __device__ __host__ unsigned get_key(KeyValue entry) {
+        return (unsigned)(entry >> 32);
+    }
+
+    //! Returns the value of an Entry.
+    inline __device__ __host__ unsigned get_value(KeyValue entry) {
+        return (unsigned)(entry & 0xffffffff);
+    }
+
+
+    inline __device__ __host__ unsigned stash_hash_function(const unsigned key) {   //TODO:: might need to change type sig
+        return (2720648079 ^ key + 13) % kStashSize;
+    }
     // 32 bit Murmur3 hash
     __device__ uint hash(int hash_id, uint k, uint capacity) {
         k ^= k >> 16;

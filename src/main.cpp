@@ -8,9 +8,11 @@
 #include "chrono"
 #include "hash_table.h"
 #include "linearprobing.h"
+#include "cuckoo.h"
 //using namespace LinearProbing;
 // Create random keys/values in the range [0, kEmpty)
 // kEmpty is used to indicate an empty slot
+
 
 std::vector<KeyValue> generate_random_keyvalues(std::mt19937& rnd, uint32_t numkvs)
 {
@@ -23,7 +25,7 @@ std::vector<KeyValue> generate_random_keyvalues(std::mt19937& rnd, uint32_t numk
     {
         uint32_t rand0 = dis(rnd);
         uint32_t rand1 = dis(rnd);
-        kvs.push_back(make_entry(rand0, rand1));
+        kvs.push_back(hash_make_entry(rand0, rand1));
     }
 
     return kvs;
@@ -68,11 +70,11 @@ void test_unordered_map(std::vector<KeyValue>& insert_kvs, std::vector<KeyValue>
         std::unordered_map<uint32_t, uint32_t> kvs_map;
         for (auto& kv : insert_kvs) 
         {
-            kvs_map[get_key(kv)] = getValue(kv);
+            kvs_map[hash_get_key(kv)] = hash_get_value(kv);
         }
         for (auto& kv : delete_kvs)
         {
-            auto i = kvs_map.find(get_key(kv));
+            auto i = kvs_map.find(hash_get_key(kv));
             if (i != kvs_map.end())
                 kvs_map.erase(i);
         }
@@ -149,15 +151,15 @@ int main()
         printf("Initializing keyvalue pairs with random numbers...\n");
 
         std::vector<KeyValue> insert_kvs = generate_random_keyvalues(rnd, kNumKeyValues);
-        //std::vector<KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
+        std::vector<KeyValue> delete_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
         std::vector<KeyValue> lookup_kvs = shuffle_keyvalues(rnd, insert_kvs, kNumKeyValues / 2);
 
         printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
                (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
-        HashTable lp = LinearProbing::HashTableLP();
-        HashTable cuc = Cuckoo::HashTableC();
-        run_test(lp, insert_kvs, delete_kvs, lookup_kvs);
+        LinearProbing::HashTableLP lp = LinearProbing::HashTableLP();
+        Cuckoo::HashTableC cuc = Cuckoo::HashTableC();
         run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
+        run_test(lp, insert_kvs, delete_kvs, lookup_kvs);
     }
 
     return 0;

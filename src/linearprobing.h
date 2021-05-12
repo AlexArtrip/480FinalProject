@@ -1,6 +1,7 @@
 #pragma once
 #include "vector"
 #include "hash_table.h"
+#include <string>
 
 namespace LinearProbing {
     KeyValue* create_hashtable(uint size);
@@ -42,7 +43,7 @@ namespace LinearProbing {
         virtual std::vector<KeyValue> iterate_hashtable() {
             return LinearProbing::iterate_hashtable(table, hashTableCapacity);
         }
-        virtual string name() {
+        virtual std::string name() {
             return "Linear Probing ";
         }
     };
