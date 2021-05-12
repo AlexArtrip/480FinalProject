@@ -2,6 +2,7 @@
 #include "stdint.h"
 #include "vector"
 #include "linearprobing.h"
+#include "cuda_util.h"
 namespace LinearProbing {
     //! Makes an 64-bit Entry out of a key-value pair for the hash table.
     inline __device__ __host__ KeyValue make_entry(unsigned key, unsigned value) {
@@ -70,7 +71,7 @@ namespace LinearProbing {
     {
         // Copy the keyvalues to the GPU
         KeyValue* device_kvs;
-        cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs);
+        CUDA_SAFE_CALL(cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs));
         cudaMemcpy(device_kvs, kvs, sizeof(KeyValue) * num_kvs, cudaMemcpyHostToDevice);
 
         // Have CUDA calculate the thread block size

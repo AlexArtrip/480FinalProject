@@ -99,7 +99,7 @@ void run_test(HashTable& hashTable, std::vector<KeyValue>& insert_kvs,
     Time timer = start_timer();
 
     // Insert items into the hash table
-    const uint32_t num_insert_batches = 16;
+    const uint32_t num_insert_batches = 1;
     //const uint32_t num_insert_batches = 1;
     uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
     for (uint32_t i = 0; i < num_insert_batches; i++)
@@ -116,7 +116,7 @@ void run_test(HashTable& hashTable, std::vector<KeyValue>& insert_kvs,
         hashTable->delete_hashtable(delete_kvs.data() + i * num_deletes_per_batch, num_deletes_per_batch);
     }
     */
-    const uint32_t num_lookup_batches = 8;
+    const uint32_t num_lookup_batches = 1;
     //const uint32_t num_lookup_batches = 1;
     uint32_t num_lookups_per_batch = (uint32_t)lookup_kvs.size() / num_lookup_batches;
     for (uint32_t i = 0; i < num_lookup_batches; i++)

@@ -25,6 +25,8 @@ namespace Cuckoo {
 
         unsigned max_iterations = (unsigned)(4.0 * ceil(-1.0 / (0.028255 + 1.1594772 *
             ln_load_factor) * lg_input_size));
+
+        printf("%u\n", max_iterations);
         //#endif
         return max_iterations;
     }
@@ -107,7 +109,7 @@ namespace Cuckoo {
             unsigned prev_key = key;
             // The key is always inserted into its first slot at the start.
             uint location = hash(0, key, capacity);
-
+            //printf("%u\n", max_iteration_attempts);
             // Keep inserting until an empty slot is found or the eviction chain grows too large.
             for (unsigned its = 1; its <= max_iteration_attempts; its++) {
                 // Insert the new entry.
@@ -122,17 +124,18 @@ namespace Cuckoo {
                 // Otherwise, determine where the evicted key will go.
                 location = determine_next_location(capacity, key, location);
             }
-
+            //printf("failed insert with key %u whose prev_key is %u \n", key, prev_key);
             if (key != kEmpty) {
                 //printf("failed insert will stash now after max_iter = %u \n", max_iteration_attempts);
                 // Shove it into the stash.
                 uint slot = stash_hash_function(key);
                 KeyValue *stash = hashtable + capacity;
                 KeyValue replaced_entry = atomicCAS((stash + slot), kvEmpty, entry);
-                if (replaced_entry != kvEmpty) {
-                    atomicAdd(fail_count, 1);
-                } else {
+                if (replaced_entry == kvEmpty) {
                     atomicAdd(stash_count, 1);
+                }
+                else if (get_key(replaced_entry) != key) {
+                    atomicAdd(fail_count, 1);
                 }
             }
         }
@@ -142,7 +145,7 @@ namespace Cuckoo {
                           uint num_kvs, uint *d_stash_count) {
         // Copy the keyvalues to the GPU
         KeyValue *device_kvs;
-        cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs);
+        CUDA_SAFE_CALL(cudaMalloc(&device_kvs, sizeof(KeyValue) * num_kvs));
         cudaMemcpy(device_kvs, kvs, sizeof(KeyValue) * num_kvs, cudaMemcpyHostToDevice);
 
         // Have CUDA calculate the thread block size
