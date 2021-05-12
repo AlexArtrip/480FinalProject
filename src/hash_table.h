@@ -60,5 +60,10 @@ protected:
     KeyValue* table;
 };
 
+enum HashTableType {
+    LINEAR_PROBING = 0,
+    CUCKOO = 1
+};
+
 
 #endif //GPUHASHTABLES_HASH_TABLE_H
