@@ -157,9 +157,11 @@ int main()
 
         printf("Testing insertion/lookup of %d/%d elements into GPU hash table...\n",
                (uint32_t)insert_kvs.size(), (uint32_t)lookup_kvs.size());
-        LinearProbing::HashTableLP lp = LinearProbing::HashTableLP();
-        Cuckoo::HashTableC cuc = Cuckoo::HashTableC();
-        run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
+        for (uint j = 1; j < 5; j++) {
+            Cuckoo::HashTableC cuc(kHashTableCapacity, j * 10);
+            run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
+        }
+        LinearProbing::HashTableLP lp;
         run_test(lp, insert_kvs, delete_kvs, lookup_kvs);
     }
 

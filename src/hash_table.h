@@ -52,7 +52,9 @@ public:
     virtual void lookup_hashtable(KeyValue* kvs, uint32_t num_kvs) = 0;
     virtual void delete_hashtable(const KeyValue* kvs, uint32_t num_kvs) = 0;
     virtual std::vector<KeyValue> iterate_hashtable() = 0;
-    virtual std::string name() = 0;
+    virtual const std::string name() {
+        return "default ";
+    }
 
 protected:
     uint32_t hashTableCapacity = 128 * 1024 * 1024;
