@@ -15,6 +15,7 @@
 #include <cstring>
 #include "cuckoo_1h1p.h"
 #include "cuckoo_2h1p.h"
+#include "cuckoo_4h.h"
 
 //using namespace LinearProbing;
 // Create random keys/values in the range [0, kEmpty)
@@ -161,14 +162,14 @@ int main()
     Logger cmod2h1p_logger(CUCKOO_2H1P, false);
     Logger c4h_logger(CUCKOO_4H, false);
 
-    // 2^12, 15, 18, 21, 24, 27
-    uint capacities[] = { 4096, 4096 * 8, 4096 * 64, 4096 * 64 * 8, 4096 * 64 * 64, 4096 * 64 * 64 * 8};
+    // 2^10, 14, 18, 22, 26
+    uint capacities[] = { 1024, 1024 * 16, 1024 * 256, 1024 * 1024 * 4, 1024 * 1024 * 64};
     uint loads[] = {1, 2, 3, 4, 5, 6, 7, 8, 9}; // 0.1, 0.2, ... , 0.9
 
     uint num_kvs; 
 
 
-    for (uint i = 0; i < 6; i++) {  // TODO: change these temp values
+    for (uint i = 0; i < 5; i++) {  // TODO: change these temp values
         for (uint j = 0; j < 9; j++) {
             num_kvs = capacities[i] * loads[j] / 10;
 

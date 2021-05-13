@@ -76,12 +76,13 @@ namespace Cuckoo4h {
     __device__ unsigned determine_next_location(const unsigned table_size,
                                                 const unsigned key,
                                                 const unsigned previous_location) {
-        uint h0 = hash(0, key, table_size)
+        uint h0 = hash(0, key, table_size);
         uint hash_val = h0;
         if (hash_val == previous_location) {
             return hash(1, key, table_size);
         }
         for (uint i = 1; i < 3; i++) {
+            hash_val = hash(i, key, table_size);
             if (hash_val == previous_location) {
                 return hash(i + 1, key, table_size);
             }
