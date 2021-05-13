@@ -79,7 +79,7 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-whitegrid')
 import numpy as np
 
-plt.title("Insertion LF vs Speed with Capacity 2^26")
+plt.title("LF vs Insertion Rate with Capacity 2^26")
 plt.xlabel("Load Factor")
 plt.ylabel("Insert Rate (mil keys/sec)")
 for name in names:
@@ -88,7 +88,7 @@ plt.legend(loc="upper right")
 plt.savefig("insert_LFvSpeed.png")
 
 plt.clf()
-plt.title("Lookup LF vs Speed with Capacity 2^26")
+plt.title("LF vs Lookup Rate with Capacity 2^26")
 plt.xlabel("Load Factor")
 plt.ylabel("Lookup Rate (mil keys/sec)")
 for name in names:
@@ -97,7 +97,7 @@ plt.legend(loc="upper right")
 plt.savefig("lookup_LFvSpeed.png")
 
 plt.clf()
-plt.title("Insertion Capacity vs Speed with LF 0.5")
+plt.title("Capacity vs Insertion Rate with LF .5")
 plt.xlabel("Capacity (log 2)")
 plt.ylabel("Insert Rate (mil keys/sec)")
 for name in names:
@@ -106,7 +106,7 @@ plt.legend(loc="upper right")
 plt.savefig("insert_CvSpeed.png")
 
 plt.clf()
-plt.title("Lookup Capacity vs Speed with LF 0.5")
+plt.title("Capacity vs Lookup Rate with LF .5")
 plt.xlabel("Capacity (log 2)")
 plt.ylabel("Lookup Rate (mil keys/sec)")
 for name in names:
