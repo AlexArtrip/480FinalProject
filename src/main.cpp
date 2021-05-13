@@ -102,7 +102,7 @@ void run_test(HashTable& hashTable, std::vector<KeyValue>& insert_kvs,
     Time timer = start_timer();
 
     // Insert items into the hash table
-    const uint32_t num_insert_batches = 16;
+    const uint32_t num_insert_batches = 1;
     //const uint32_t num_insert_batches = 1;
     uint32_t num_inserts_per_batch = (uint32_t)insert_kvs.size() / num_insert_batches;
     for (uint32_t i = 0; i < num_insert_batches; i++)
@@ -154,21 +154,20 @@ int main()
 //    std::mt19937 rnd(seed);  // mersenne_twister_engine
     std::mt19937 rnd(512);
 
-    printf("Random number generator seed = %u\n", seed);
+    //printf("Random number generator seed = %u\n", seed);
 
     Logger lp_logger(LINEAR_PROBING, false);
     Logger c_logger(CUCKOO, false);
-    Logger cmod_logger(CUCKOO_1H1P, false);
     Logger cmod2h1p_logger(CUCKOO_2H1P, false);
 
     // 2^12, 15, 18, 21, 24, 27
     uint capacities[] = { 4096, 4096 * 8, 4096 * 64, 4096 * 64 * 8, 4096 * 64 * 64, 4096 * 64 * 64 * 8};
     uint loads[] = {1, 2, 3, 4, 5, 6, 7, 8, 9}; // 0.1, 0.2, ... , 0.9
 
-    uint num_kvs = capacities[i] * loads[j] / 10;
+    uint num_kvs; 
 
 
-    for (uint i = 0; i < 6; i++) {
+    for (uint i = 0; i < 6; i++) {  // TODO: change these temp values
         for (uint j = 0; j < 9; j++) {
             num_kvs = capacities[i] * loads[j] / 10;
 
@@ -182,30 +181,28 @@ int main()
                    (uint32_t) insert_kvs.size(), (uint32_t) lookup_kvs.size());
 
 
-            Cuckoo2h1p::HashTableC2h1p cuc2h1p = Cuckoo2h1p::HashTableC2h1p(capacities[i], num_kvs);
+            
+            Cuckoo2h1p::HashTableC cuc2h1p = Cuckoo2h1p::HashTableC(capacities[i], num_kvs);
             cuc2h1p.setLogger(&cmod2h1p_logger);
             run_test(cuc2h1p, insert_kvs, delete_kvs, lookup_kvs);
             cuc2h1p.destroy_hashtable();
             cmod2h1p_logger.flush();
-
-            LinearProbing::HashTableLP lp = LinearProbing::HashTableLP(capacities[i], num_kvs);
+            
+            
+            LinearProbing::HashTableLP lp = LinearProbing::HashTableLP(capacities[i]);
             lp.setLogger(&lp_logger);
             run_test(lp, insert_kvs, delete_kvs, lookup_kvs);
             lp.destroy_hashtable();
             lp_logger.flush();
-
-            Cuckoo1h1p::HashTableC cuck_mod = Cuckoo1h1p::HashTableC(capacities[i], num_kvs);
-            cuck_mod.setLogger(&cmod_logger);
-            run_test(cuck_mod, insert_kvs, delete_kvs, lookup_kvs);
-            cuck_mod.destroy_hashtable();
-            cmod_logger.flush();
-
-
+            
+            
             Cuckoo::HashTableC cuc = Cuckoo::HashTableC(capacities[i], num_kvs);
             cuc.setLogger(&c_logger);
             run_test(cuc, insert_kvs, delete_kvs, lookup_kvs);
             cuc.destroy_hashtable();
             c_logger.flush();
+            
+            
         }
     }   
 

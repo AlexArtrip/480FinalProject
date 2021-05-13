@@ -18,7 +18,6 @@ namespace Cuckoo2h1p {
         unsigned max_iterations = (unsigned)(4.0 * ceil(-1.0 / (0.028255 + 1.1594772 *
             ln_load_factor) * lg_input_size));
 
-        printf("%u\n", max_iterations);
         //#endif
         return max_iterations;
     }
