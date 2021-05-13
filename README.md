@@ -8,7 +8,7 @@ The project is based on [Nosferalatu's simple GPU linear probing hash table](htt
 and [CUDPP's cuckoo hash table](https://github.com/cudpp/cudpp). The aim was to compare the two hashing schemes on the 
 GPU, and also explore other hashing schemes. 
 
-[Read our report here](http://nosferalatu.com/SimpleGPUHashTable.html) for more information about the project/experiment.
+[Read our report here](https://github.com/AlexArtrip/480FinalProject/blob/main/report.pdf) for more information about the project/experiment.
 
 # Prerequisites
 
