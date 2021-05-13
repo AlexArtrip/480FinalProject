@@ -44,13 +44,9 @@ Logger::Logger(HashTableType hashTableType, bool deleteFlag) {
     switch (hashTableType) {
         case LINEAR_PROBING:
             break;
-        case CUCKOO:
-        case CUCKOO_1H1P :
-        case CUCKOO_2H1P :
+        default:
             *file << "InsertIter\tStashCount\tFailCount\t";
             break;
-        default:
-            exit(-1);
     }
     *file << "LookupNumKVs\tLookupTime";
     if (deleteFlag) {

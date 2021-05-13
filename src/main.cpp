@@ -159,6 +159,7 @@ int main()
     Logger lp_logger(LINEAR_PROBING, false);
     Logger c_logger(CUCKOO, false);
     Logger cmod2h1p_logger(CUCKOO_2H1P, false);
+    Logger c4h_logger(CUCKOO_4H, false);
 
     // 2^12, 15, 18, 21, 24, 27
     uint capacities[] = { 4096, 4096 * 8, 4096 * 64, 4096 * 64 * 8, 4096 * 64 * 64, 4096 * 64 * 64 * 8};
@@ -187,7 +188,12 @@ int main()
             run_test(cuc2h1p, insert_kvs, delete_kvs, lookup_kvs);
             cuc2h1p.destroy_hashtable();
             cmod2h1p_logger.flush();
-            
+
+            Cuckoo4h::HashTableC cuc4h = Cuckoo4h::HashTableC(capacities[i], num_kvs);
+            cuc4h.setLogger(&c4h_logger);
+            run_test(cuc4h, insert_kvs, delete_kvs, lookup_kvs);
+            cuc4h.destroy_hashtable();
+            c4h_logger.flush();
             
             LinearProbing::HashTableLP lp = LinearProbing::HashTableLP(capacities[i]);
             lp.setLogger(&lp_logger);
