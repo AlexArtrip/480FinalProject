@@ -1,49 +1,14 @@
-![](screenshot.png)
+![](plotting/insert_LFvSpeed.png)
 
 # About
 
-This project shows how to implement a simple GPU hash table. Thanks to the high bandwidth and massive parallelism of
-GPU's, the result is a high performance hash table capable of hundreds of millions of operations per second.
+This project is done as a final project for Comp 480.
 
-The code achieves an average insertion rate of 326 million key/second on my development laptop with an NVIDIA GTX 1060,
-measured by inserting 64 million elements.
+The project is based on [Nosferalatu's simple GPU linear probing hash table](https://github.com/nosferalatu/SimpleGPUHashTable) 
+and [CUDPP's cuckoo hash table](https://github.com/cudpp/cudpp). The aim was to compare the two hashing schemes on the 
+GPU, and also explore other hashing schemes. 
 
-[Read my blog post about the code here](http://nosferalatu.com/SimpleGPUHashTable.html) for more information about the
-implementation.
-
-The code implements a lock free hash table using linear probing. Concurrent inserts, deletes, and lookups are supported by
-this hash table. The hash table works on 32 bit keys and 32 bit values (although 0xffffffff is reserved for both keys
-and values). The load factor of the table is set to 50% in the code, and the table size must be a power of two.
-
-Atomic operations are used to insert key/value pairs into the hash table on multiple GPU threads. It uses CUDA for ease
-of development, but could easily be ported to HLSL or GLSL. 64 bit keys and/or values could be supported using 64 bit
-atomics.
-
-Resizing the hash table is not implemented (it's a *simple* hash table!) although this can be achieved by inserting the
-contents of a table into another, larger table.
-
-The code was kept simple for readability. There are many optimizations that can be done, but they muddy the waters. I
-wanted to illustrate the basic design of the lock free hash table and how it can be implemented on a GPU.
-
-# How To Use
-
-If you build and run the executable, it enters an infinite loop of inserting and deleting random numbers into the
-GPU hash table and verifying that the results are correct. The seed used to generate random numbers changes every time
-you run the executable, but you can set the seed to a specific value in code if you'd like to reproduce results across
-runs.
-
-This is how you insert a vector of `KeyValue` pairs into the hash table and then retrieve all the `KeyValue` pairs back:
-
-```cpp
-    std::vector<KeyValue> things_to_insert = { {0,1}, {1,2}, {2,3}, {3,4} };
-
-    KeyValue* pHashTable = create_hashtable();
-    insert_hashtable(pHashTable, things_to_insert.data(), (uint32_t)things_to_insert.size());
-    std::vector<KeyValue> result = iterate_hashtable(pHashTable);
-    destroy_hashtable(pHashTable);
-```
-
-After that runs, the vectors `things_to_insert` and `result` should be the same, but possibly in a different order.
+[Read our report here](http://nosferalatu.com/SimpleGPUHashTable.html) for more information about the project/experiment.
 
 # Prerequisites
 
@@ -55,12 +20,6 @@ An easy way to get CMake is to open a Visual Studio command prompt (in Windows, 
 VS 2019"; that will put CMake in your path).
 
 This should work on other CUDA-supported platforms, but I have not tested this.
-
-# Cloning
-
-```
-git clone https://github.com/nosferalatu/SimpleConcurrentGPUHashTable.git SimpleConcurrentGPUHashTable
-```
 
 # Generating Build Files
 
@@ -87,3 +46,11 @@ You can build within Visual Studio, or from the command line with:
 ```
 cmake --build . --config Release
 ```
+
+# Testing & Plotting
+
+Then running the text.exe built from the prior command, it will run the tests on the 4 kinds of hash tables each with capacities 2^10, 2^14, 2^18, 2^22, 
+2^26, and Load Factor 0.1, ..., 0.9.
+
+The generated txt log files can be put into the plotting/data directory, and then the ht_data_plot.py will generate the 
+plots.
